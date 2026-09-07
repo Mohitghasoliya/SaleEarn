@@ -1342,7 +1342,60 @@ function onlineSnapshot(){return {users:S.users||[],sellers:S.sellers||{},produc
 function onlineSnapshotKey(data){try{return JSON.stringify(data||{})}catch(e){return ""}}
 function save(){localStorage.setItem(KEY,JSON.stringify(S));if(ONLINE_READY&&!ONLINE_LOADING){ONLINE_LOCAL_DIRTY=true;queueOnlineSync()}}
 function queueOnlineSync(){clearTimeout(ONLINE_SYNC_TIMER);ONLINE_SYNC_TIMER=setTimeout(pushOnlineState,450)}
-async function pushOnlineState(){if(!ONLINE_READY||ONLINE_LOADING)return;try{const data=onlineSnapshot();const payload={id:1,data,updated_at:new Date().toISOString()};const {error}=await supabaseClient.from(ONLINE_TABLE).upsert(payload,{onConflict:"id"});if(error)console.warn("Online sync failed",error.message);else {ONLINE_LAST_REMOTE=onlineSnapshotKey(data);ONLINE_LOCAL_DIRTY=false}}catch(e){console.warn("Online sync error",e)}}
+async function pushOnlineState(){
+ if(!ONLINE_READY||ONLINE_LOADING)return;
+ try{
+  const local=onlineSnapshot();
+  // Merge with the latest remote catalog before writing. This prevents one seller's
+  // browser from replacing another seller's products when both users are online.
+  const {data:remoteRow,error:readError}=await supabaseClient.from(ONLINE_TABLE).select("data").eq("id",1).maybeSingle();
+  if(readError)throw readError;
+  const remote=remoteRow?.data&&typeof remoteRow.data==='object'?remoteRow.data:{};
+  const mergeById=(a=[],b=[])=>{
+   const out=new Map();
+   [...a,...b].forEach(x=>{if(x&&x.id!=null)out.set(String(x.id),structuredClone(x))});
+   return [...out.values()];
+  };
+  const mergeByKey=(a={},b={})=>Object.assign({},structuredClone(a||{}),structuredClone(b||{}));
+  const merged={...remote,...local};
+  merged.users=mergeById(remote.users||[],local.users||[]);
+  merged.products=mergeById(remote.products||[],local.products||[]);
+  merged.orders=mergeById(remote.orders||[],local.orders||[]);
+  merged.payouts=mergeById(remote.payouts||[],local.payouts||[]);
+  merged.ads=mergeById(remote.ads||[],local.ads||[]);
+  merged.referrals=mergeById(remote.referrals||[],local.referrals||[]);
+  merged.subscriptions=mergeById(remote.subscriptions||[],local.subscriptions||[]);
+  merged.warnings=mergeById(remote.warnings||[],local.warnings||[]);
+  merged.devices=mergeById(remote.devices||[],local.devices||[]);
+  merged.deletedProducts=mergeById(remote.deletedProducts||[],local.deletedProducts||[]);
+  merged.balancePayments=mergeById(remote.balancePayments||[],local.balancePayments||[]);
+  merged.drafts=mergeById(remote.drafts||[],local.drafts||[]);
+  merged.productActivity=mergeById(remote.productActivity||[],local.productActivity||[]);
+  merged.adminAuditLog=mergeById(remote.adminAuditLog||[],local.adminAuditLog||[]);
+  merged.riskAlerts=mergeById(remote.riskAlerts||[],local.riskAlerts||[]);
+  merged.coupons=mergeById(remote.coupons||[],local.coupons||[]);
+  merged.couponRedemptions=mergeById(remote.couponRedemptions||[],local.couponRedemptions||[]);
+  merged.securityEvents=mergeById(remote.securityEvents||[],local.securityEvents||[]);
+  merged.notifications=mergeById(remote.notifications||[],local.notifications||[]);
+  merged.messages=mergeById(remote.messages||[],local.messages||[]);
+  merged.disputes=mergeById(remote.disputes||[],local.disputes||[]);
+  merged.refunds=mergeById(remote.refunds||[],local.refunds||[]);
+  merged.sellers=mergeByKey(remote.sellers||{},local.sellers||{});
+  merged.follows=mergeByKey(remote.follows||{},local.follows||{});
+  merged.storeThemes=mergeByKey(remote.storeThemes||{},local.storeThemes||{});
+  merged.sellerRankings=mergeByKey(remote.sellerRankings||{},local.sellerRankings||{});
+  merged.growthGoals=mergeByKey(remote.growthGoals||{},local.growthGoals||{});
+  merged.platformConfig=local.platformConfig||remote.platformConfig||{};
+  merged.adminControls=local.adminControls||remote.adminControls||{};
+  const payload={id:1,data:merged,updated_at:new Date().toISOString()};
+  const {error}=await supabaseClient.from(ONLINE_TABLE).upsert(payload,{onConflict:"id"});
+  if(error)throw error;
+  Object.assign(S,merged);
+  S.currentUser=S.currentUser||null;
+  ONLINE_LAST_REMOTE=onlineSnapshotKey(merged);ONLINE_LOCAL_DIRTY=false;
+  localStorage.setItem(KEY,JSON.stringify(S));
+ }catch(e){console.warn("Online sync error",e)}
+}
 async function restoreOnlineState(){try{const {data,error}=await supabaseClient.from(ONLINE_TABLE).select("data,updated_at").eq("id",1).maybeSingle();if(error){console.warn("Online state unavailable",error.message);return false}const localUser=S.currentUser?structuredClone(S.currentUser):null,localSettings=structuredClone(S.settings||{}),localCart=[...(S.cart||[])],localSaved=[...(S.saved||[])],localLibrary=[...(S.library||[])],localDraft=S.draft?structuredClone(S.draft):null;if(data?.data){Object.assign(S,data.data);S.users=S.users||[];S.sellers=S.sellers||{};S.products=S.products||[];S.orders=S.orders||[];S.reviews=S.reviews||{};S.follows=S.follows||{};S.payouts=S.payouts||[];S.ads=S.ads||[];S.referrals=S.referrals||[];S.subscriptions=S.subscriptions||[];S.warnings=S.warnings||[];S.devices=S.devices||[];S.deletedProducts=S.deletedProducts||[];S.balancePayments=S.balancePayments||[];S.drafts=S.drafts||[];S.productActivity=S.productActivity||[];S.referralUpgrades=S.referralUpgrades||[];S.adminAuditLog=S.adminAuditLog||[];S.settings=Object.assign({currency:"INR",referralUsedBy:{},websiteUpi:"saleearn.demo@upi"},localSettings);S.cart=localCart;S.saved=localSaved;S.library=localLibrary;S.draft=localDraft;S.currentUser=localUser;if(localUser){const u=S.users.find(x=>x.id===localUser.id);if(u){u.email=localUser.email||u.email;u.name=localUser.name||u.name;u.isAdmin=localUser.isAdmin??u.isAdmin;S.currentUser=u}else{S.users.push(localUser);S.currentUser=localUser}ensureStoreForUser()}ONLINE_LAST_REMOTE=onlineSnapshotKey(data.data);ONLINE_LOCAL_DIRTY=false;localStorage.setItem(KEY,JSON.stringify(S))}else await pushOnlineState();ONLINE_READY=true;return true}catch(e){console.warn("Online state restore failed",e);return false}}
 function subscribeOnlineState(){try{ONLINE_CHANNEL=supabaseClient.channel("saleearn-global-state").on("postgres_changes",{event:"UPDATE",schema:"public",table:ONLINE_TABLE,filter:"id=eq.1"},payload=>applyRemoteOnlineState(payload.new?.data||{})).on("postgres_changes",{event:"INSERT",schema:"public",table:ONLINE_TABLE,filter:"id=eq.1"},payload=>applyRemoteOnlineState(payload.new?.data||{})).subscribe()}catch(e){console.warn("Realtime subscription failed",e)}}
 async function pollOnlineState(){if(!ONLINE_READY||ONLINE_LOADING)return;try{const {data,error}=await supabaseClient.from(ONLINE_TABLE).select("data,updated_at").eq("id",1).maybeSingle();if(!error&&data?.data)applyRemoteOnlineState(data.data)}catch(e){console.warn("Online refresh failed",e)}}
@@ -1796,7 +1849,17 @@ function detail(id){
  <div class="review-box"><div class="section-head"><div><h2>Customer Reviews</h2><p>Anyone can submit a rating and review. Verified buyers receive a badge.</p></div><button class="btn primary" onclick="openReview('${p.id}')">★ Write Review</button></div>
  ${rs.length?rs.map(r=>`<div class="review-item"><div style="display:flex;justify-content:space-between"><b>${esc(r.name)}</b><span class="stars">${stars(r.rating)}</span></div><div class="small muted">${new Date(r.date).toLocaleDateString()} ${r.verified?`· <b style="color:#17a875">Verified buyer</b>`:""}</div><p>${esc(r.text)}</p></div>`).join(""):`<div class="dash-card" style="margin:0"><p class="muted">No reviews yet. Be the first to rate this product.</p></div>`}</div>
  </div><button class="btn primary sticky-buy" onclick="${hasPurchased(p.id)?`openPurchasedByProduct('${p.id}')`:`buyNow('${p.id}')`} ">${hasPurchased(p.id)?"Check":"Buy "+money(p.price)}</button></main>${footer()}`}
-async function shareProduct(id){const url=location.origin+location.pathname+"#product/"+id;try{if(navigator.share)await navigator.share({title:product(id)?.title||"Sale Earn Product",url});else{await navigator.clipboard?.writeText(url);toast("Product link copied")}}catch(e){}}
+async function shareProduct(id){
+ const p=product(id);if(!p){toast("Product not found");return}
+ const url=location.origin+location.pathname+"#product/"+encodeURIComponent(id);
+ try{
+  if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(url)}
+  else{
+   const ta=document.createElement("textarea");ta.value=url;ta.setAttribute("readonly","");ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();
+  }
+  toast("Product link copied");
+ }catch(e){toast("Could not copy product link")}
+}
 function thumbLarge(p){return `<div class="detail-image">${p.image?`<img src="${esc(p.image)}" alt="${esc(p.title||'Product image')}" onload="setDetailImageRatio(this)" onerror="this.style.display='none'">`:`<div class="thumb-fallback">🧩</div>`}</div>`}
 function setDetailImageRatio(img){const main=img.closest(".detail-main");if(!main||!img.naturalWidth||!img.naturalHeight)return;main.classList.remove("ratio-landscape","ratio-portrait","ratio-square");const ratio=img.naturalWidth/img.naturalHeight;main.classList.add(ratio>1.15?"ratio-landscape":ratio<.87?"ratio-portrait":"ratio-square")}
 function success(id){
