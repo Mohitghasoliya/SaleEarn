@@ -1336,93 +1336,167 @@ if(localStorage.getItem("SE_DEMO_RESET_VERSION")!==DEMO_RESET_VERSION){
 }
 S.users.forEach(u=>{if(u.unpublicUntil&&u.unpublicUntil<=Date.now()){u.unpublicUntil=0;u.suspendedUntil=0}});
 Object.values(S.sellers).forEach(ss=>{if(!ss.referralCode)ss.referralCode=(ss.owner||"SE").replace(/\W/g,"").slice(0,4).toUpperCase()+"-"+ss.id.slice(-4).toUpperCase()});
-const ONLINE_TABLE="saleearn_app_state";
-let ONLINE_READY=false,ONLINE_LOADING=false,ONLINE_SYNC_TIMER=null,ONLINE_CHANNEL=null,ONLINE_POLL_TIMER=null,ONLINE_LAST_REMOTE="",ONLINE_LOCAL_DIRTY=false;
-function onlineSnapshot(){return {users:S.users||[],sellers:S.sellers||{},products:S.products||[],orders:S.orders||[],reviews:S.reviews||{},follows:S.follows||{},payouts:S.payouts||[],ads:S.ads||[],referrals:S.referrals||[],subscriptions:S.subscriptions||[],warnings:S.warnings||[],devices:S.devices||[],deletedProducts:S.deletedProducts||[],balancePayments:S.balancePayments||[],drafts:S.drafts||[],productActivity:S.productActivity||[],adminAuditLog:S.adminAuditLog||[],adminControls:S.adminControls||{},platformConfig:S.platformConfig||{},riskAlerts:S.riskAlerts||[],coupons:S.coupons||[],couponRedemptions:S.couponRedemptions||[],storeThemes:S.storeThemes||{},securityEvents:S.securityEvents||[],sellerRankings:S.sellerRankings||[],growthGoals:S.growthGoals||{},notifications:S.notifications||[],messages:S.messages||[],disputes:S.disputes||[],refunds:S.refunds||[]}}
-function onlineSnapshotKey(data){try{return JSON.stringify(data||{})}catch(e){return ""}}
-function save(){localStorage.setItem(KEY,JSON.stringify(S));if(ONLINE_READY&&!ONLINE_LOADING){ONLINE_LOCAL_DIRTY=true;queueOnlineSync()}}
-function queueOnlineSync(){clearTimeout(ONLINE_SYNC_TIMER);ONLINE_SYNC_TIMER=setTimeout(pushOnlineState,450)}
-async function pushOnlineState(){
- if(!ONLINE_READY||ONLINE_LOADING)return;
- try{
-  const local=onlineSnapshot();
-  // Merge with the latest remote catalog before writing. This prevents one seller's
-  // browser from replacing another seller's products when both users are online.
-  const {data:remoteRow,error:readError}=await supabaseClient.from(ONLINE_TABLE).select("data").eq("id",1).maybeSingle();
-  if(readError)throw readError;
-  const remote=remoteRow?.data&&typeof remoteRow.data==='object'?remoteRow.data:{};
-  const mergeById=(a=[],b=[])=>{
-   const out=new Map();
-   [...a,...b].forEach(x=>{if(x&&x.id!=null)out.set(String(x.id),structuredClone(x))});
-   return [...out.values()];
-  };
-  const mergeByKey=(a={},b={})=>Object.assign({},structuredClone(a||{}),structuredClone(b||{}));
-  const merged={...remote,...local};
-  merged.users=mergeById(remote.users||[],local.users||[]);
-  merged.products=mergeById(remote.products||[],local.products||[]);
-  merged.orders=mergeById(remote.orders||[],local.orders||[]);
-  merged.payouts=mergeById(remote.payouts||[],local.payouts||[]);
-  merged.ads=mergeById(remote.ads||[],local.ads||[]);
-  merged.referrals=mergeById(remote.referrals||[],local.referrals||[]);
-  merged.subscriptions=mergeById(remote.subscriptions||[],local.subscriptions||[]);
-  merged.warnings=mergeById(remote.warnings||[],local.warnings||[]);
-  merged.devices=mergeById(remote.devices||[],local.devices||[]);
-  merged.deletedProducts=mergeById(remote.deletedProducts||[],local.deletedProducts||[]);
-  merged.balancePayments=mergeById(remote.balancePayments||[],local.balancePayments||[]);
-  merged.drafts=mergeById(remote.drafts||[],local.drafts||[]);
-  merged.productActivity=mergeById(remote.productActivity||[],local.productActivity||[]);
-  merged.adminAuditLog=mergeById(remote.adminAuditLog||[],local.adminAuditLog||[]);
-  merged.riskAlerts=mergeById(remote.riskAlerts||[],local.riskAlerts||[]);
-  merged.coupons=mergeById(remote.coupons||[],local.coupons||[]);
-  merged.couponRedemptions=mergeById(remote.couponRedemptions||[],local.couponRedemptions||[]);
-  merged.securityEvents=mergeById(remote.securityEvents||[],local.securityEvents||[]);
-  merged.notifications=mergeById(remote.notifications||[],local.notifications||[]);
-  merged.messages=mergeById(remote.messages||[],local.messages||[]);
-  merged.disputes=mergeById(remote.disputes||[],local.disputes||[]);
-  merged.refunds=mergeById(remote.refunds||[],local.refunds||[]);
-  merged.sellers=mergeByKey(remote.sellers||{},local.sellers||{});
-  merged.follows=mergeByKey(remote.follows||{},local.follows||{});
-  merged.storeThemes=mergeByKey(remote.storeThemes||{},local.storeThemes||{});
-  merged.sellerRankings=mergeByKey(remote.sellerRankings||{},local.sellerRankings||{});
-  merged.growthGoals=mergeByKey(remote.growthGoals||{},local.growthGoals||{});
-  merged.platformConfig=local.platformConfig||remote.platformConfig||{};
-  merged.adminControls=local.adminControls||remote.adminControls||{};
-  const payload={id:1,data:merged,updated_at:new Date().toISOString()};
-  const {error}=await supabaseClient.from(ONLINE_TABLE).upsert(payload,{onConflict:"id"});
-  if(error)throw error;
-  Object.assign(S,merged);
-  S.currentUser=S.currentUser||null;
-  ONLINE_LAST_REMOTE=onlineSnapshotKey(merged);ONLINE_LOCAL_DIRTY=false;
-  localStorage.setItem(KEY,JSON.stringify(S));
- }catch(e){console.warn("Online sync error",e)}
+/* Sale Earn LOW-LOAD SYNC v1 — original public marketplace/test payments retained.
+   No database schema or RLS changes. One full initial read; small version checks later. */
+const ONLINE_TABLE='saleearn_app_state';
+let ONLINE_READY=false,ONLINE_LOADING=false,ONLINE_SYNC_TIMER=null,ONLINE_CHANNEL=null,ONLINE_POLL_TIMER=null,ONLINE_LAST_REMOTE='',ONLINE_LOCAL_DIRTY=false;
+const SE_SYNC_CONFIG=Object.freeze({pollMs:30000,debounceMs:2000,maxWaitMs:8000,focusThrottleMs:15000,maxRetryMs:60000,maxRetries:5});
+let seBase=null,seVersion=null,seExists=false,seSyncKey='',seWriteBusy=false,seReadBusy=false,seDirtySince=0,seFailures=0,seRetryAt=0,seLastCheck=0,seStopped=false,seMutation=0,seStorageWarned=false;
+const seCounters={fullReads:0,versionReads:0,writes:0,skippedWrites:0,conflicts:0};
+function onlineSnapshot(){return {users:S.users||[],sellers:S.sellers||{},products:S.products||[],orders:S.orders||[],reviews:S.reviews||{},follows:S.follows||{},payouts:S.payouts||[],ads:S.ads||[],referrals:S.referrals||[],subscriptions:S.subscriptions||[],warnings:S.warnings||[],devices:S.devices||[],deletedProducts:S.deletedProducts||[],balancePayments:S.balancePayments||[],drafts:S.drafts||[],productActivity:S.productActivity||[],adminAuditLog:S.adminAuditLog||[],adminControls:S.adminControls||{},platformConfig:S.platformConfig||{},riskAlerts:S.riskAlerts||[],coupons:S.coupons||[],couponRedemptions:S.couponRedemptions||[],storeThemes:S.storeThemes||{},securityEvents:S.securityEvents||[],sellerRankings:S.sellerRankings||[],growthGoals:S.growthGoals||{},notifications:S.notifications||[],messages:S.messages||[],disputes:S.disputes||[],refunds:S.refunds||[]}}function onlineSnapshotKey(data){return JSON.stringify(data||{});}
+function seClone(x){return x===undefined?undefined:structuredClone(x);}
+function sePersist(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){if(!seStorageWarned){seStorageWarned=true;toast('Browser storage is full or unavailable. Keep this tab open until cloud sync completes.');}console.warn('Local save failed',e);}}
+function seOnline(){return navigator.onLine!==false;}
+function seSame(a,b){return a===b||JSON.stringify(a)===JSON.stringify(b);}
+// Three-way merge: only locally changed fields override the most recent server copy.
+// Unrelated remote edits survive; locally deleted keyed rows do not reappear.
+// Concurrent edits to the same scalar still use local-last-write; not a transactional ledger.
+function seMerge(base,local,remote){
+ if(seSame(local,base))return seClone(remote);
+ if(seSame(remote,base)||seSame(local,remote))return seClone(local);
+ if(local===undefined)return undefined;
+ if(remote===undefined)return seClone(local);
+ const obj=v=>v&&typeof v==='object'&&!Array.isArray(v);
+ if(obj(local)&&obj(remote)&&(obj(base)||base===undefined)){
+  const out={};for(const k of new Set([...Object.keys(base||{}),...Object.keys(remote),...Object.keys(local)])){
+   if(['__proto__','constructor','prototype'].includes(k))continue;
+   const value=seMerge(base?.[k],local[k],remote[k]);if(value!==undefined)out[k]=value;
+  }return out;
+ }
+ const keyed=a=>Array.isArray(a)&&a.every(x=>x&&typeof x==='object'&&!Array.isArray(x)&&x.id!=null)&&new Set(a.map(x=>String(x.id))).size===a.length;
+ if(keyed(local)&&keyed(remote)&&(base===undefined||keyed(base))){
+  const map=a=>new Map((a||[]).map(x=>[String(x.id),x]));const bm=map(base),lm=map(local),rm=map(remote),out=[];
+  for(const id of new Set([...lm.keys(),...rm.keys(),...bm.keys()])){const value=seMerge(bm.get(id),lm.get(id),rm.get(id));if(value!==undefined)out.push(value);}return out;
+ }
+ return seClone(local);
 }
-async function restoreOnlineState(){try{const {data,error}=await supabaseClient.from(ONLINE_TABLE).select("data,updated_at").eq("id",1).maybeSingle();if(error){console.warn("Online state unavailable",error.message);return false}const localUser=S.currentUser?structuredClone(S.currentUser):null,localSettings=structuredClone(S.settings||{}),localCart=[...(S.cart||[])],localSaved=[...(S.saved||[])],localLibrary=[...(S.library||[])],localDraft=S.draft?structuredClone(S.draft):null;if(data?.data){Object.assign(S,data.data);S.users=S.users||[];S.sellers=S.sellers||{};S.products=S.products||[];S.orders=S.orders||[];S.reviews=S.reviews||{};S.follows=S.follows||{};S.payouts=S.payouts||[];S.ads=S.ads||[];S.referrals=S.referrals||[];S.subscriptions=S.subscriptions||[];S.warnings=S.warnings||[];S.devices=S.devices||[];S.deletedProducts=S.deletedProducts||[];S.balancePayments=S.balancePayments||[];S.drafts=S.drafts||[];S.productActivity=S.productActivity||[];S.referralUpgrades=S.referralUpgrades||[];S.adminAuditLog=S.adminAuditLog||[];S.settings=Object.assign({currency:"INR",referralUsedBy:{},websiteUpi:"saleearn.demo@upi"},localSettings);S.cart=localCart;S.saved=localSaved;S.library=localLibrary;S.draft=localDraft;S.currentUser=localUser;if(localUser){const u=S.users.find(x=>x.id===localUser.id);if(u){u.email=localUser.email||u.email;u.name=localUser.name||u.name;u.isAdmin=localUser.isAdmin??u.isAdmin;S.currentUser=u}else{S.users.push(localUser);S.currentUser=localUser}ensureStoreForUser()}ONLINE_LAST_REMOTE=onlineSnapshotKey(data.data);ONLINE_LOCAL_DIRTY=false;localStorage.setItem(KEY,JSON.stringify(S))}else await pushOnlineState();ONLINE_READY=true;return true}catch(e){console.warn("Online state restore failed",e);return false}}
-function subscribeOnlineState(){try{ONLINE_CHANNEL=supabaseClient.channel("saleearn-global-state").on("postgres_changes",{event:"UPDATE",schema:"public",table:ONLINE_TABLE,filter:"id=eq.1"},payload=>applyRemoteOnlineState(payload.new?.data||{})).on("postgres_changes",{event:"INSERT",schema:"public",table:ONLINE_TABLE,filter:"id=eq.1"},payload=>applyRemoteOnlineState(payload.new?.data||{})).subscribe()}catch(e){console.warn("Realtime subscription failed",e)}}
-async function pollOnlineState(){if(!ONLINE_READY||ONLINE_LOADING)return;try{const {data,error}=await supabaseClient.from(ONLINE_TABLE).select("data,updated_at").eq("id",1).maybeSingle();if(!error&&data?.data)applyRemoteOnlineState(data.data)}catch(e){console.warn("Online refresh failed",e)}}
-function startOnlinePolling(){clearInterval(ONLINE_POLL_TIMER);ONLINE_POLL_TIMER=setInterval(pollOnlineState,5000)}
-function applyRemoteOnlineState(remote){
- if(!ONLINE_READY||ONLINE_LOADING||!remote||typeof remote!=="object")return;
- // Never let an incoming remote snapshot overwrite local changes that are still queued.
- if(ONLINE_LOCAL_DIRTY)return;
- const incomingKey=onlineSnapshotKey(remote);
- // Supabase realtime/polling can return the exact same state repeatedly.
- // Never re-render the page for an unchanged state; re-rendering destroys active
- // form inputs and makes Product Information appear to refresh/lose details.
- if(incomingKey&&incomingKey===ONLINE_LAST_REMOTE)return;
- const currentRoute=routeNow();
- const isProductDraftPage=/^dashboard\/add(?:2|3)?(?:\?edit=.*)?$/.test(currentRoute);
- const localUser=S.currentUser?structuredClone(S.currentUser):null,localSettings=structuredClone(S.settings||{}),localCart=[...(S.cart||[])],localSaved=[...(S.saved||[])],localLibrary=[...(S.library||[])],localDraft=S.draft?structuredClone(S.draft):null;
- Object.assign(S,remote);
- S.users=S.users||[];S.sellers=S.sellers||{};S.products=S.products||[];S.orders=S.orders||[];S.reviews=S.reviews||{};S.follows=S.follows||{};S.payouts=S.payouts||[];S.ads=S.ads||[];S.referrals=S.referrals||[];S.subscriptions=S.subscriptions||[];S.warnings=S.warnings||[];S.devices=S.devices||[];S.deletedProducts=S.deletedProducts||[];S.balancePayments=S.balancePayments||[];S.drafts=S.drafts||[];
- S.settings=Object.assign({currency:"INR",referralUsedBy:{},websiteUpi:"saleearn.demo@upi"},localSettings);
+function seSetBase(row){seExists=!!row;seVersion=row?.updated_at??null;seBase=seClone(row?.data||{});ONLINE_LAST_REMOTE=onlineSnapshotKey(seBase);}
+function seInstall(remote){
+ const localUser=S.currentUser?seClone(S.currentUser):null;
+ const localSettings=seClone(S.settings||{}),localCart=[...(S.cart||[])],localSaved=[...(S.saved||[])],localLibrary=[...(S.library||[])],localDraft=S.draft?seClone(S.draft):null;
+ Object.assign(S,seClone(remote||{}));
+ for(const k of ['users','products','orders','payouts','ads','referrals','subscriptions','warnings','devices','deletedProducts','balancePayments','drafts','productActivity','referralUpgrades','adminAuditLog'])S[k]=Array.isArray(S[k])?S[k]:[];
+ for(const k of ['sellers','reviews','follows'])S[k]=S[k]&&typeof S[k]==='object'?S[k]:{};
+ S.settings=Object.assign({currency:'INR',referralUsedBy:{},websiteUpi:'saleearn.demo@upi'},localSettings);
  S.cart=localCart;S.saved=localSaved;S.library=localLibrary;S.draft=localDraft;S.currentUser=localUser;
- if(localUser){const u=S.users.find(x=>x.id===localUser.id);if(u)Object.assign(u,localUser);else S.users.push(localUser);ensureStoreForUser()}
- ONLINE_LAST_REMOTE=incomingKey;
- localStorage.setItem(KEY,JSON.stringify(S));
- // While a seller is entering Product Information, keep the existing DOM and
- // draft intact. The next normal navigation will pick up the latest shared data.
- if(!isProductDraftPage && !document.activeElement?.matches("input,textarea,select,button"))render();
+ if(localUser){const u=S.users.find(x=>x.id===localUser.id);if(u){u.email=localUser.email||u.email;u.name=localUser.name||u.name;u.isAdmin=localUser.isAdmin??u.isAdmin;S.currentUser=u;}else S.users.push(localUser);}
+ sePersist();
 }
+function save(){
+ sePersist();if(!ONLINE_READY||ONLINE_LOADING)return;
+ const current=onlineSnapshotKey(onlineSnapshot());
+ if(current===seSyncKey){seCounters.skippedWrites++;if(!seWriteBusy){ONLINE_LOCAL_DIRTY=false;seDirtySince=0;clearTimeout(ONLINE_SYNC_TIMER);}return;}
+ ONLINE_LOCAL_DIRTY=true;seMutation++;if(!seDirtySince)seDirtySince=Date.now();queueOnlineSync();
+}
+function queueOnlineSync(){
+ if(!ONLINE_READY||!ONLINE_LOCAL_DIRTY||seStopped||!seOnline())return;
+ clearTimeout(ONLINE_SYNC_TIMER);
+ const maxWait=Math.max(0,SE_SYNC_CONFIG.maxWaitMs-(Date.now()-(seDirtySince||Date.now())));
+ const delay=Math.max(Math.min(SE_SYNC_CONFIG.debounceMs,maxWait),seRetryAt-Date.now(),0);
+ ONLINE_SYNC_TIMER=setTimeout(()=>pushOnlineState(),delay);
+}
+async function seReadFull(){seCounters.fullReads++;const r=await supabaseClient.from(ONLINE_TABLE).select('data,updated_at').eq('id',1).maybeSingle();if(r.error)throw r.error;return r.data;}
+async function seReadVersion(){seCounters.versionReads++;const r=await supabaseClient.from(ONLINE_TABLE).select('updated_at').eq('id',1).maybeSingle();if(r.error)throw r.error;return r.data;}
+function seFailure(e){
+ seFailures++;const code=String(e?.code||e?.status||'');
+ if(['401','403','42501','PGRST301','PGRST302'].includes(code)||seFailures>=SE_SYNC_CONFIG.maxRetries){
+  seStopped=true;toast('Cloud sync paused after errors. Changes are kept locally. Check connection/permissions before retrying.');
+ }else seRetryAt=Date.now()+Math.min(SE_SYNC_CONFIG.maxRetryMs,2000*2**(seFailures-1));
+ console.warn('Cloud sync delayed',e?.message||e);
+}
+function seSucceeded(){seFailures=0;seRetryAt=0;seStopped=false;}
+async function pushOnlineState(){
+ if(!ONLINE_READY||ONLINE_LOADING||seWriteBusy||seReadBusy||!ONLINE_LOCAL_DIRTY||seStopped||!seOnline())return;
+ if(Date.now()<seRetryAt){queueOnlineSync();return;}
+ if(onlineSnapshotKey(onlineSnapshot())===seSyncKey){ONLINE_LOCAL_DIRTY=false;seCounters.skippedWrites++;return;}
+ seWriteBusy=true;clearTimeout(ONLINE_SYNC_TIMER);
+ try{
+  const sent=seClone(onlineSnapshot()),sentKey=onlineSnapshotKey(sent),sentMutation=seMutation,base=seClone(seBase||{});
+  const meta=await seReadVersion();
+  let row=seExists?{data:seClone(seBase),updated_at:seVersion}:null;
+  if(!!meta!==seExists||(meta?.updated_at??null)!==seVersion)row=await seReadFull();
+  // A null/missing revision cannot safely identify a cached full snapshot.
+  else if(meta&&meta.updated_at==null)row=await seReadFull();
+  const remote=row?.data||{},merged=seMerge(base,sent,remote)||{};
+  if(seSame(merged,remote)){
+   seSetBase(row);const current=onlineSnapshot();if(seMutation===sentMutation&&onlineSnapshotKey(current)===sentKey)seInstall(merged);
+   else seInstall(seMerge(sent,seClone(current),merged));
+  }else{
+   const previous=row?.updated_at??null;
+   const previousMs=Date.parse(previous||'');
+   const stamp=new Date(Math.max(Date.now(),Number.isFinite(previousMs)?previousMs+1:0)).toISOString();
+   let q;
+   if(row){q=supabaseClient.from(ONLINE_TABLE).update({data:merged,updated_at:stamp}).eq('id',1);q=previous===null?q.is('updated_at',null):q.eq('updated_at',previous);}
+   else q=supabaseClient.from(ONLINE_TABLE).insert({id:1,data:merged,updated_at:stamp});
+   seCounters.writes++;const result=await q.select('updated_at').maybeSingle();
+   if(result.error){if(String(result.error.code)==='23505'){seCounters.conflicts++;throw {code:'SYNC_CONFLICT',message:'Another browser created the shared record. Retry after refresh.'};}throw result.error;}
+   if(!result.data){seCounters.conflicts++;throw {code:'SYNC_CONFLICT',message:'Another browser updated the record during this save.'};}
+   seSetBase({data:merged,updated_at:result.data.updated_at});
+   const current=seClone(onlineSnapshot());seInstall(seMerge(sent,current,merged));
+  }
+  // The acknowledged baseline must reflect only server-confirmed data, not edits
+  // made while this request was in flight.
+  seSyncKey=onlineSnapshotKey(seBase||{});
+  ONLINE_LOCAL_DIRTY=onlineSnapshotKey(onlineSnapshot())!==seSyncKey;
+  seDirtySince=ONLINE_LOCAL_DIRTY?Date.now():0;seSucceeded();
+ }catch(e){seFailure(e);}
+ finally{seWriteBusy=false;if(ONLINE_LOCAL_DIRTY&&!seStopped)queueOnlineSync();}
+}
+async function restoreOnlineState(){
+ if(seReadBusy)return false;seReadBusy=true;
+ try{
+  const row=await seReadFull();seSetBase(row);
+  if(row?.data)seInstall(row.data);
+  seSyncKey=onlineSnapshotKey(seBase||{});ONLINE_READY=true;
+  ONLINE_LOCAL_DIRTY=!row||onlineSnapshotKey(onlineSnapshot())!==seSyncKey;
+  if(ONLINE_LOCAL_DIRTY){seDirtySince=Date.now();setTimeout(queueOnlineSync,0);}
+  seSucceeded();return true;
+ }catch(e){seFailure(e);return false;}
+ finally{seReadBusy=false;}
+}
+function subscribeOnlineState(){
+ // Deliberately no realtime subscription: the old stream rebroadcast the entire
+ // shared JSON blob on every write. Version polling below is the only read channel.
+ if(ONLINE_CHANNEL){try{supabaseClient.removeChannel(ONLINE_CHANNEL);}catch{}ONLINE_CHANNEL=null;}
+}
+async function pollOnlineState(force=false){
+ if(!ONLINE_READY||ONLINE_LOADING||seReadBusy||seWriteBusy||ONLINE_LOCAL_DIRTY||seStopped||!seOnline()||document.visibilityState==='hidden')return;
+ if(Date.now()<seRetryAt)return;
+ if(!force&&Date.now()-seLastCheck<SE_SYNC_CONFIG.focusThrottleMs)return;
+ seReadBusy=true;seLastCheck=Date.now();
+ try{
+  const meta=await seReadVersion();
+  if(!!meta===seExists&&(meta?.updated_at??null)===seVersion&&(!meta||meta.updated_at!=null)){seSucceeded();return;}
+  const row=await seReadFull();
+  // User may have edited while the network request was pending.
+  if(ONLINE_LOCAL_DIRTY)return;
+  if(row?.data){const changed=onlineSnapshotKey(row.data)!==ONLINE_LAST_REMOTE;seSetBase(row);seSyncKey=onlineSnapshotKey(seBase);if(changed){seInstall(row.data);const editing=/^dashboard\/(?:add(?:2|3)?|edit\/)/.test(routeNow());if(!editing&&!document.activeElement?.matches('input,textarea,select,button'))render();}ONLINE_LOCAL_DIRTY=onlineSnapshotKey(onlineSnapshot())!==seSyncKey;if(ONLINE_LOCAL_DIRTY&&!seDirtySince)seDirtySince=Date.now();}
+  // A deleted server row is not silently recreated by an idle browser.
+  else {seExists=false;seVersion=null;}
+  seSucceeded();
+ }catch(e){seFailure(e);}
+ finally{seReadBusy=false;if(ONLINE_LOCAL_DIRTY)queueOnlineSync();}
+}
+function startOnlinePolling(){
+ clearTimeout(ONLINE_POLL_TIMER);
+ const tick=async()=>{await pollOnlineState();ONLINE_POLL_TIMER=setTimeout(tick,SE_SYNC_CONFIG.pollMs+Math.floor(Math.random()*3000));};
+ ONLINE_POLL_TIMER=setTimeout(tick,SE_SYNC_CONFIG.pollMs+Math.floor(Math.random()*3000));
+}
+function applyRemoteOnlineState(remote){
+ if(!ONLINE_READY||ONLINE_LOADING||ONLINE_LOCAL_DIRTY||!remote||typeof remote!=='object')return;
+ const key=onlineSnapshotKey(remote);if(key===ONLINE_LAST_REMOTE)return;
+ const editing=/^dashboard\/(?:add(?:2|3)?|edit\/)/.test(routeNow());
+ seInstall(remote);ONLINE_LAST_REMOTE=key;
+ if(!editing&&!document.activeElement?.matches('input,textarea,select,button'))render();
+}
+window.saleEarnSyncStatus=()=>({ready:ONLINE_READY,pending:ONLINE_LOCAL_DIRTY,saving:seWriteBusy,paused:seStopped,failures:seFailures,counts:{...seCounters},pollMs:SE_SYNC_CONFIG.pollMs});
+window.saleEarnRetrySync=async()=>{seStopped=false;seFailures=0;seRetryAt=0;if(!ONLINE_READY){await restoreSupabaseSession();return;}if(ONLINE_LOCAL_DIRTY)return pushOnlineState();return pollOnlineState(true);};
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='hidden'){if(ONLINE_LOCAL_DIRTY)queueOnlineSync();else pollOnlineState();}});
+window.addEventListener('focus',()=>{if(!ONLINE_LOCAL_DIRTY)pollOnlineState();});
+window.addEventListener('online',()=>{seStopped=false;seFailures=0;seRetryAt=0;if(!ONLINE_READY)restoreSupabaseSession();else if(ONLINE_LOCAL_DIRTY)queueOnlineSync();else pollOnlineState();});
+window.addEventListener('beforeunload',e=>{if(ONLINE_LOCAL_DIRTY||seWriteBusy){sePersist();e.preventDefault();e.returnValue='';}});
+
+
 function esc(s=""){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
 function currentSeller(){return S.currentUser?ensureStoreForUser():null}
 function product(id){return S.products.find(p=>p.id===id)}
@@ -2990,7 +3064,7 @@ function selectReferralUpgradeLevel(level){
  window.adminOnly=function(){if(!S.currentUser){openAuth('signin','admin');return false}if(!window.isSuperAdmin()){toast('Admin access required');return false}return true};
  window.logAdminAudit=function(action,targetId,meta={}){if(!window.isSuperAdmin())return;S.adminAuditLog=S.adminAuditLog||[];S.adminAuditLog.unshift({id:uid('audit'),action,targetId,date:nowISO(),adminId:S.currentUser.id,meta:meta||{}});if(S.adminAuditLog.length>3000)S.adminAuditLog.length=3000};
  window.adminAudit=function(action,targetId,meta={}){logAdminAudit(action,targetId,meta);logSecurityEvent('ADMIN_ACTION',{action,targetId,meta})};
- function snapshotConfig(reason){const c=pc();c.configHistory=c.configHistory||[];c.configHistory.unshift({version:Date.now(),date:nowISO(),adminId:S.currentUser?.id||'ADMIN',reason,config:structuredClone(c)});if(c.configHistory.length>30)c.configHistory.length=30}
+ function snapshotConfig(reason){const c=pc();c.configHistory=c.configHistory||[];c.configHistory.unshift({version:Date.now(),date:nowISO(),adminId:S.currentUser?.id||'ADMIN',reason,config:structuredClone({...c,configHistory:[]})});if(c.configHistory.length>30)c.configHistory.length=30}
  function setPath(path,value){const c=pc();let o=c;const parts=path.split('.');for(let i=0;i<parts.length-1;i++){if(!o[parts[i]]||typeof o[parts[i]]!=='object')o[parts[i]]={};o=o[parts[i]]}o[parts.at(-1)]=value}
  function saveCfg(reason,critical=false){if(!adminOnly())return;const commit=()=>{snapshotConfig(reason);S.platformConfig=pc();adminAudit(reason,'PLATFORM_CONFIG',{reason});save();toast('Settings saved');render()};if(critical){window.__saleEarnCommitCfg=commit;adminConfirm('Confirm critical configuration change','This can immediately affect payments, withdrawals, commission or platform access.','window.__saleEarnCommitCfg()','Confirm & Save')}else commit()}
  window.adminControlSave=function(section){if(!adminOnly())return; if(section==='commission'){const c=pc().commission;c.defaultPct=Math.min(100,num('acDef'));c.newSellerPct=Math.min(100,num('acNew'));c.premiumPct=Math.min(100,num('acPrem'));c.promotionalPct=Math.min(100,num('acPromo'));c.temporaryPct=Math.min(100,num('acTemp'));c.fixed=num('acFixed');c.min=num('acMin');c.max=Math.max(c.min,num('acMax'));}
