@@ -1159,6 +1159,153 @@ html[data-theme],html[data-theme] body{background:var(--theme-bg)!important;colo
 :root[data-theme="dark"] .mail-info-card p,:root[data-theme="dark"] .mail-info-card small{color:var(--ad-muted)}
 </style>
 
+
+<style id="saleearn-lighting-hover-fix">
+/* Premium interaction lighting: hover must never wash controls/cards white. */
+:root{
+  --hover-bg:#f4f2ff;
+  --hover-border:#8176f2;
+  --hover-shadow:0 10px 26px rgba(81,70,229,.12);
+}
+
+/* Light mode: subtle tinted hover, never pure white. */
+.admin-link:hover,
+.admin-actions .btn:hover,
+.admin-top .btn:hover,
+.admin-card:hover,
+.admin-kpi:hover,
+.admin-detail-box:hover,
+.admin-table tr.data-row:hover,
+.admin-stat:hover,
+.btn:hover,
+button:hover,
+.pill:hover,
+.iconbtn:hover,
+.view-toggle button:hover,
+.dash-link:hover,
+.filter-cat:hover,
+.category-card:hover,
+.product-card:hover,
+.pay-opt:hover{
+  background-color:var(--hover-bg);
+  color:inherit;
+}
+
+/* Admin buttons keep their intended visual identity on hover. */
+.admin-actions .btn:hover,
+.admin-top .btn:hover{
+  border-color:var(--hover-border)!important;
+  box-shadow:0 8px 20px rgba(81,70,229,.10);
+}
+.admin-actions .btn.primary:hover,
+.admin-top .btn.primary:hover{
+  background:linear-gradient(135deg,#6b5ff0,#856eff)!important;
+  color:#fff!important;
+  border-color:transparent!important;
+}
+.admin-actions .btn.danger:hover{
+  background:#3a1821!important;
+  color:#ffb1b9!important;
+  border-color:#7a3d49!important;
+}
+
+/* Sidebar: selected/hover states stay dark/premium. */
+.admin-side .admin-link:hover{
+  background:#17233c!important;
+  color:#eef3ff!important;
+  box-shadow:inset 3px 0 rgba(129,118,242,.45);
+}
+.admin-side .admin-link.active:hover{
+  background:linear-gradient(135deg,#6255ee,#7b61ff)!important;
+  color:#fff!important;
+  box-shadow:0 8px 22px rgba(98,85,238,.22);
+}
+
+/* Admin cards: no white flash. */
+.admin-card:hover,.admin-detail-box:hover,.admin-kpi:hover{
+  background:linear-gradient(180deg,#141f35,#10192c)!important;
+  color:#e8ecf7!important;
+  border-color:#7769f4!important;
+  box-shadow:0 18px 40px rgba(0,0,0,.22)!important;
+}
+.admin-table tr.data-row:hover{
+  background:#18233b!important;
+  color:#eef3ff!important;
+}
+.admin-table tr.data-row:hover td{background:transparent!important;}
+
+/* Dark dashboard controls: preserve their dark surface while hovering. */
+:root[data-theme="dark"] .btn:hover,
+:root[data-theme="dark"] button:hover,
+:root[data-theme="dark"] .pill:hover,
+:root[data-theme="dark"] .iconbtn:hover,
+:root[data-theme="dark"] .view-toggle button:hover,
+:root[data-theme="dark"] .dash-link:hover,
+:root[data-theme="dark"] .filter-cat:hover,
+:root[data-theme="dark"] .category-card:hover,
+:root[data-theme="dark"] .pay-opt:hover{
+  background:#18223a!important;
+  color:#eef3ff!important;
+}
+
+:root[data-theme="dark"] .dash-content .btn:hover,
+:root[data-theme="dark"] .dash-content button:hover{
+  background:#18223a!important;
+  color:#eef3ff!important;
+  border-color:#7769f4!important;
+}
+:root[data-theme="dark"] .dash-content .btn.primary:hover{
+  background:linear-gradient(135deg,#6255ee,#7b61ff)!important;
+  color:#fff!important;
+  border-color:transparent!important;
+}
+
+/* Inputs: no bright white hover surface. */
+:root[data-theme="dark"] .field input:hover,
+:root[data-theme="dark"] .field textarea:hover,
+:root[data-theme="dark"] .field select:hover,
+:root[data-theme="dark"] .input:hover,
+:root[data-theme="dark"] .searchbox input:hover{
+  background:#0d1425!important;
+  color:#e8ecf7!important;
+  border-color:#7769f4!important;
+}
+
+/* Generic clickable cards/rows in dark mode. */
+:root[data-theme="dark"] .product-card:hover,
+:root[data-theme="dark"] .dash-card:hover,
+:root[data-theme="dark"] .metric:hover,
+:root[data-theme="dark"] .power:hover,
+:root[data-theme="dark"] .stat-card:hover,
+:root[data-theme="dark"] .setting-card:hover,
+:root[data-theme="dark"] .security-box:hover,
+:root[data-theme="dark"] .order-card:hover,
+:root[data-theme="dark"] .library-card:hover,
+:root[data-theme="dark"] .store-card:hover,
+:root[data-theme="dark"] .account-panel:hover,
+:root[data-theme="dark"] .account-profile-card:hover,
+:root[data-theme="dark"] .profile-card:hover,
+:root[data-theme="dark"] .ref-card:hover,
+:root[data-theme="dark"] .ad-card:hover,
+:root[data-theme="dark"] .payment-card:hover,
+:root[data-theme="dark"] .balance-card:hover,
+:root[data-theme="dark"] .history-card:hover,
+:root[data-theme="dark"] .warning-card:hover,
+:root[data-theme="dark"] .service-card:hover,
+:root[data-theme="dark"] .summary-card:hover,
+:root[data-theme="dark"] .earning-card:hover,
+:root[data-theme="dark"] .payout-card:hover{
+  background:#11192c!important;
+  color:#e8ecf7!important;
+}
+
+/* Remove accidental white hover from common links/text buttons. */
+:root[data-theme="dark"] a:hover,
+:root[data-theme="dark"] .link:hover{
+  color:#b9b0ff;
+}
+</style>
+
 </head>
 <body>
 <div id="siteLoader" class="site-loader" aria-label="Loading Sale Earn" aria-live="polite">
