@@ -2850,7 +2850,7 @@ function render(){
  else if(r==="admin/deleted")out=adminDeleted();
  else if(r==="admin/commission")out=adminCommission();
  else if(r==="admin/audit")out=adminAuditPage();
-  else if(r==="admin/mail")out=mailPanel();
+  else if(r==="admin/mail")out=typeof mailPanel==="function"?mailPanel():adminPage();
  else if(r==="admin/system")out=adminSystem();
  else if(r==="dashboard/overview")out=dashOverview();
  else if(r==="dashboard/products")out=dashProducts();
@@ -3387,7 +3387,7 @@ function when(v){const d=new Date(v);return Number.isNaN(d.getTime())?'—':d.to
 function human(k){k=String(k);if(/^[A-Z_]+$/.test(k))k=k.toLowerCase().replaceAll('_',' ');return k.replace(/([A-Z])/g,' $1').replace(/^./,x=>x.toUpperCase());}
 
 /* ---------- Sale Earn Mail Center ---------- */
-let mailTab='inbox',mailSelected=null;
+let mailCurrentTab='inbox',mailSelected=null;
 function mailStore(){
   S.mailMessages=Array.isArray(S.mailMessages)?S.mailMessages:[];
   return S.mailMessages;
@@ -3399,7 +3399,7 @@ function mailSeed(){
 }
 window.mailOpen=function(id){mailSelected=id;const m=mailStore().find(x=>x.id===id);if(m){m.read=true;save();}render();};
 window.mailBack=function(){mailSelected=null;render();};
-window.mailTab=function(tab){mailTab=tab;mailSelected=null;render();};
+window.mailTab=function(tab){mailCurrentTab=tab==='sent'?'sent':'inbox';mailSelected=null;render();};
 window.mailDelete=function(id){if(!adminOnly())return;S.mailMessages=mailStore().filter(x=>x.id!==id);mailSelected=null;save();render();};
 window.mailToggleStar=function(id){if(!adminOnly())return;const m=mailStore().find(x=>x.id===id);if(!m)return;m.starred=!m.starred;save();render();};
 window.mailCompose=function(){
@@ -3413,7 +3413,7 @@ window.mailSend=function(){
   if(!to||!subject||!body)return toast('Recipient, subject and message are required.');
   const user=(S.users||[]).find(u=>String(u.email||'').toLowerCase()===to.toLowerCase());
   const m={id:uid('mail'),type:'sent',from:S.currentUser?.name||'Administrator',fromEmail:S.currentUser?.email||'',to,subject,body,date:nowISO(),read:true,starred:false,userId:user?.id||null};
-  mailStore().unshift(m);if(mailStore().length>500)mailStore().length=500;save();closeModal();mailTab='sent';mailSelected=m.id;render();toast('Message saved in Sent.');
+  mailStore().unshift(m);if(mailStore().length>500)mailStore().length=500;save();closeModal();mailCurrentTab='sent';mailSelected=m.id;render();toast('Message saved in Sent.');
 };
 function mailPanel(){
   mailSeed();
@@ -3422,10 +3422,10 @@ function mailPanel(){
   const unread=all.filter(x=>!x.read&&x.type!=='sent').length;
   const inbox=all.filter(x=>x.type!=='sent');
   const sent=all.filter(x=>x.type==='sent');
-  const active=mailTab==='sent'?sent:inbox;
-  const rows=active.map(m=>`<button class="mail-row ${m.read?'':'unread'} ${selected?.id===m.id?'selected':''}" onclick="mailOpen('${esc(m.id)}')"><span class="mail-avatar">${esc(initials(m.type==='sent'?m.to:m.from))}</span><span class="mail-row-main"><strong>${esc(m.type==='sent'?'To: '+m.to:(m.from||'Sale Earn'))}</strong><span>${esc(m.subject||'(No subject)')}</span><small>${esc(String(m.body||'').replace(/\s+/g,' ').slice(0,95))}</small></span><span class="mail-row-side"><button class="mail-star ${m.starred?'on':''}" onclick="event.stopPropagation();mailToggleStar('${esc(m.id)}')" aria-label="Star">${m.starred?'★':'☆'}</button><small>${when(m.date)}</small></span></button>`).join('')||`<div class="mail-empty"><div class="mail-empty-icon">✉</div><h3>No messages</h3><p>${mailTab==='sent'?'Sent messages will appear here.':'Your inbox is clear.'}</p></div>`;
-  const detail=selected?`<div class="mail-detail"><div class="mail-detail-head"><button class="btn" onclick="mailBack()">← Back</button><div class="mail-detail-actions"><button class="btn" onclick="mailToggleStar('${esc(selected.id)}')">${selected.starred?'★ Starred':'☆ Star'}</button><button class="btn danger" onclick="mailDelete('${esc(selected.id)}')">Delete</button></div></div><div class="mail-detail-title"><div class="mail-avatar large">${esc(initials(selected.type==='sent'?selected.to:selected.from))}</div><div><h2>${esc(selected.subject||'(No subject)')}</h2><div class="muted small">${selected.type==='sent'?'To: '+esc(selected.to):'From: '+esc(selected.from||'Sale Earn')} · ${esc(new Date(selected.date).toLocaleString('en-IN'))}</div></div></div><div class="mail-detail-body">${esc(selected.body||'').replace(/\n/g,'<br>')}</div></div>`:`<div class="mail-list"><div class="mail-list-head"><div><b>${mailTab==='sent'?'Sent':'Inbox'}</b><span class="mail-count">${active.length}</span></div><button class="btn primary" onclick="mailCompose()">+ Compose</button></div>${rows}</div>`;
-  return adminLayout('mail','Mail Center',`${titleBlock('COMMUNICATION','Mail Center','A clean internal message center for Sale Earn users and admin communication.')}<div class="mail-shell"><aside class="mail-sidebar"><button class="mail-compose-btn" onclick="mailCompose()">✎ Compose</button><button class="mail-nav ${mailTab==='inbox'?'active':''}" onclick="mailTab('inbox')">✉ Inbox ${unread?`<span>${unread}</span>`:''}</button><button class="mail-nav ${mailTab==='sent'?'active':''}" onclick="mailTab('sent')">↗ Sent <span>${sent.length}</span></button><div class="mail-info-card"><strong>SMTP connected</strong><p>Auth OTP delivery is handled securely by Supabase SMTP.</p><small>${esc(cfg().branding?.emailSenderName||'Sale Earn')}</small></div></aside><section class="mail-main">${detail}</section></div>`);
+  const active=mailCurrentTab==='sent'?sent:inbox;
+  const rows=active.map(m=>`<div class="mail-row ${m.read?'':'unread'} ${selected?.id===m.id?'selected':''}" role="button" tabindex="0" onclick="mailOpen('${esc(m.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();mailOpen('${esc(m.id)}')}"><span class="mail-avatar">${esc(initials(m.type==='sent'?m.to:m.from))}</span><span class="mail-row-main"><strong>${esc(m.type==='sent'?'To: '+m.to:(m.from||'Sale Earn'))}</strong><span>${esc(m.subject||'(No subject)')}</span><small>${esc(String(m.body||'').replace(/\s+/g,' ').slice(0,95))}</small></span><span class="mail-row-side"><button class="mail-star ${m.starred?'on':''}" onclick="event.stopPropagation();mailToggleStar('${esc(m.id)}')" aria-label="Star">${m.starred?'★':'☆'}</button><small>${when(m.date)}</small></span></div>`).join('')||`<div class="mail-empty"><div class="mail-empty-icon">✉</div><h3>No messages</h3><p>${mailCurrentTab==='sent'?'Sent messages will appear here.':'Your inbox is clear.'}</p></div>`;
+  const detail=selected?`<div class="mail-detail"><div class="mail-detail-head"><button class="btn" onclick="mailBack()">← Back</button><div class="mail-detail-actions"><button class="btn" onclick="mailToggleStar('${esc(selected.id)}')">${selected.starred?'★ Starred':'☆ Star'}</button><button class="btn danger" onclick="mailDelete('${esc(selected.id)}')">Delete</button></div></div><div class="mail-detail-title"><div class="mail-avatar large">${esc(initials(selected.type==='sent'?selected.to:selected.from))}</div><div><h2>${esc(selected.subject||'(No subject)')}</h2><div class="muted small">${selected.type==='sent'?'To: '+esc(selected.to):'From: '+esc(selected.from||'Sale Earn')} · ${esc(new Date(selected.date).toLocaleString('en-IN'))}</div></div></div><div class="mail-detail-body">${esc(selected.body||'').replace(/\n/g,'<br>')}</div></div>`:`<div class="mail-list"><div class="mail-list-head"><div><b>${mailCurrentTab==='sent'?'Sent':'Inbox'}</b><span class="mail-count">${active.length}</span></div><button class="btn primary" onclick="mailCompose()">+ Compose</button></div>${rows}</div>`;
+  return adminLayout('mail','Mail Center',`${titleBlock('COMMUNICATION','Mail Center','A clean internal message center for Sale Earn users and admin communication.')}<div class="mail-shell"><aside class="mail-sidebar"><button class="mail-compose-btn" onclick="mailCompose()">✎ Compose</button><button class="mail-nav ${mailCurrentTab==='inbox'?'active':''}" onclick="mailTab('inbox')">✉ Inbox ${unread?`<span>${unread}</span>`:''}</button><button class="mail-nav ${mailCurrentTab==='sent'?'active':''}" onclick="mailTab('sent')">↗ Sent <span>${sent.length}</span></button><div class="mail-info-card"><strong>SMTP connected</strong><p>Auth OTP delivery is handled securely by Supabase SMTP.</p><small>${esc(cfg().branding?.emailSenderName||'Sale Earn')}</small></div></aside><section class="mail-main">${detail}</section></div>`);
 }
 window.studioMenu=function(){mobileOpen=!mobileOpen;document.body.classList.toggle('as-menu-open',mobileOpen);};
 const groups=[['WORKSPACE',[['','grid','Overview'],['control','sliders','Website controls'],['products','box','Products'],['users','users','Users & sellers'],['orders','orders','Orders']]],['BUSINESS',[['sales','chart','Sales & earnings'],['payouts','wallet','Withdrawals'],['commission','tag','Commissions'],['coupons','tag','Coupons'],['analytics','chart','Analytics'],['money','wallet','Money overview']]],['TRUST & GROWTH',[['reviews','star','Reviews'],['smartreviews','star','Review insights'],['warnings','bell','Warnings'],['risk','shield','Risk center'],['ranking','chart','Seller rankings'],['growth','bolt','Seller growth']]],['SYSTEM',[['mail','mail','Mail Center'],['audit','clock','Activity log'],['security','shield','Security'],['emergency','bolt','Emergency controls'],['deleted','trash','Recycle bin'],['system','sliders','System health']]]];
@@ -3734,5 +3734,44 @@ render();restoreSupabaseSession();
 @media(prefers-reduced-motion:reduce){.dash-brand-link,.product-card,.category-card,.dash-card,.metric,.power,.account-panel,.account-profile-card,.asset-card,.se-admin.se-admin *{transition:none!important;transform:none!important}}
 </style>
 
+
+<style id="saleearn-product-display-v4">
+/* Consistent product presentation across marketplace/store product grids and lists. */
+#marketResults, .seller-profile .grid, .bundle-box .grid, #home-trending .grid{
+  align-items:stretch;
+}
+.product-card{min-width:0;display:flex;flex-direction:column;height:100%;}
+.product-card .thumb{flex:0 0 auto;aspect-ratio:4/3;height:auto;min-height:0;background:var(--surface2);}
+.product-card .thumb img{width:100%;height:100%;object-fit:contain;object-position:center;padding:8px;}
+.product-card .body{min-width:0;flex:1;display:flex;flex-direction:column;gap:9px;}
+.product-card .body>div:first-child{min-height:22px;display:flex;gap:6px;overflow:hidden;}
+.product-card h3{overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.7em;}
+.product-card .seller-product-meta{min-height:20px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+.product-card .seller-line{margin-top:auto;min-width:0;}
+.product-card .seller-line span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.product-card .body>div:last-child{margin-top:0!important;}
+.list-view{display:grid;grid-template-columns:1fr;gap:16px;}
+.list-view>.product-card{display:grid;grid-template-columns:minmax(220px,28%) minmax(0,1fr);min-height:220px;}
+.list-view>.product-card .thumb{height:100%;aspect-ratio:auto;border-right:1px solid var(--line);}
+.list-view>.product-card .body{padding:18px 20px;}
+.list-view>.product-card h3{min-height:0;font-size:18px;}
+.list-view>.product-card .seller-line{margin-top:auto;}
+@media(max-width:760px){
+  .list-view>.product-card{grid-template-columns:150px minmax(0,1fr);min-height:180px;}
+  .list-view>.product-card .body{padding:14px;}
+}
+@media(max-width:520px){
+  .list-view>.product-card{display:flex;flex-direction:column;min-height:0;}
+  .list-view>.product-card .thumb{height:auto;aspect-ratio:4/3;border-right:0;border-bottom:1px solid var(--line);}
+  .list-view>.product-card .body{padding:15px;}
+}
+.mail-row{display:flex;align-items:center;gap:12px;width:100%;padding:14px 15px;border:0;border-bottom:1px solid var(--ad-line);background:transparent;color:var(--ad-text);text-align:left;cursor:pointer;transition:.16s;}
+.mail-row:hover,.mail-row:focus-visible{background:#f7f5ff;outline:none;}
+.mail-row-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
+.mail-row-main strong,.mail-row-main span,.mail-row-main small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mail-row-side{display:flex;align-items:center;gap:9px;flex:0 0 auto;}
+.mail-star{border:0;background:transparent;cursor:pointer;font-size:18px;line-height:1;padding:4px;color:#7b8497;}
+.mail-star.on{color:#e2a51a;}
+</style>
 </body>
 </html>
