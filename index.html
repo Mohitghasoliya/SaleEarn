@@ -1347,15 +1347,47 @@ async function syncSupabaseAdmin(user){
 async function restoreSupabaseSession(){
   try{
     const {data}=await supabaseClient.auth.getSession();
-    if(data?.session?.user){await syncSupabaseAdmin(data.session.user)}
+    const authUser=data?.session?.user||null;
     SUPABASE_READY=true;
+    if(authUser){
+      let u=S.users.find(x=>x.authId===authUser.id||x.id===authUser.id||String(x.email||"").toLowerCase()===String(authUser.email||"").toLowerCase());
+      const adminFlag=await syncSupabaseAdmin(authUser);
+      const profileRow=(await supabaseClient.from('profiles').select('display_name,role,score,user_id').eq('id',authUser.id).maybeSingle()).data;
+      if(!u){
+        u={id:authUser.id,authId:authUser.id,userId:profileRow?.user_id||('SE-'+String(authUser.id).replace(/-/g,'').slice(0,8).toUpperCase()),name:profileRow?.display_name||authUser.user_metadata?.name||authUser.email?.split('@')[0]||'User',email:authUser.email||'',role:profileRow?.role||'user',verified:true,score:Number(profileRow?.score??80)};
+        if(!adminFlag){
+          u.sellerId=uid('seller');
+          S.sellers[u.sellerId]={id:u.sellerId,name:u.name+"'s Store",owner:u.name,followers:0,logo:"",storeId:u.sellerId,bio:"Welcome to my Sale Earn store.",plan:"FREE",upi:""};
+        }
+        S.users.push(u);
+      }else{
+        u.authId=authUser.id;
+        u.id=authUser.id;
+        u.userId=u.userId||profileRow?.user_id||('SE-'+String(authUser.id).replace(/-/g,'').slice(0,8).toUpperCase());
+        u.email=authUser.email||u.email||'';
+        u.name=profileRow?.display_name||authUser.user_metadata?.name||u.name||authUser.email?.split('@')[0]||'User';
+        if(profileRow?.role)u.role=profileRow.role;
+        if(profileRow && Number.isFinite(Number(profileRow.score)))u.score=Number(profileRow.score);
+        u.verified=true;
+      }
+      u.isAdmin=!!adminFlag;
+      if(u.isAdmin)u.role='admin';
+      S.currentUser=u;
+      if(!u.isAdmin)ensureStoreForUser();
+    }
     ONLINE_LOADING=true;
     const ok=await restoreOnlineState();
     ONLINE_LOADING=false;
     if(ok){subscribeOnlineState();startOnlinePolling();queueNormalizedSync();}
     render();
     window.hideSaleEarnLoader?.();
-  }catch(e){ONLINE_LOADING=false;console.warn("Supabase session restore failed",e);render();window.hideSaleEarnLoader?.()}
+  }catch(e){
+    ONLINE_LOADING=false;
+    S.currentUser=null;
+    console.warn('Supabase session restore failed',e);
+    render();
+    window.hideSaleEarnLoader?.();
+  }
 }
 "use strict";
 
@@ -1455,6 +1487,8 @@ function load(){
  }catch(e){return structuredClone(seed)}
 }
 let S=load();
+// Authentication is authoritative: never trust a stale localStorage currentUser on boot.
+S.currentUser=null;
 try{(S.users||[]).forEach(u=>{if(!u.authId&&/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(String(u.id||'')))u.authId=u.id;if(!u.userId)u.userId='SE-'+String(u.authId||u.id||uid('user')).replace(/-/g,'').slice(0,8).toUpperCase();});}catch(e){console.warn('Legacy account migration failed',e)}
 function defaultPlatformConfig(){return {
  version:1,
@@ -2298,9 +2332,10 @@ function sendContact(){
 function isAdmin(){
  const u=S.currentUser;
  if(!u)return false;
- const configuredId="55eb2c79-777b-4c9e-8a83-d824b2b24478";
- const configuredEmail="mohitghasoliya89@gmail.com";
- return !!u.isAdmin || u.id===configuredId || String(u.email||"").toLowerCase()===configuredEmail;
+ // Admin access is tied to the immutable Supabase Auth UUID.
+ const configuredId="19424c7c-8624-4aa2-b2fb-002a0f57b8ed";
+ const authId=String(u.authId||u.id||"");
+ return authId===configuredId && u.isAdmin===true;
 }
 function adminOnly(){if(!S.currentUser){openAuth("signin","admin");return false}if(!isAdmin()){toast("Admin access required");return false}return true}
 function adminConfirm(title,message,action,label="Confirm"){document.getElementById("modalRoot").innerHTML=`<div class="admin-confirm-bg"><div class="admin-confirm"><h2 style="margin-top:0">${esc(title)}</h2><p class="muted">${esc(message)}</p><div class="modal-footer"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn danger" onclick="${action};closeModal()">${esc(label)}</button></div></div></div>`}
@@ -2882,6 +2917,9 @@ function applyPlatformConfig(){
  }
 }
 
+function guestGate(){
+ return `${header()}<main class="page"><div class="container"><div class="auth-box" style="text-align:center;max-width:560px;margin:80px auto"><div class="logo-mark" style="margin:0 auto 16px">SE</div><h1>Sign in to continue</h1><p class="muted">Please sign in or create an account to access Sale Earn. Admin tools are available only to the authorized Admin account.</p><div class="hero-actions" style="justify-content:center;margin-top:18px"><button class="btn primary" onclick="openAuth('signin','login')">Sign In</button><button class="btn" onclick="openAuth('signup','login')">Create Account</button></div></div></div></main>${footer()}`;
+}
 function render(){
  const __saleEarnScrollY=window.scrollY||document.documentElement.scrollTop||0;
  const __dashSideScroll=document.querySelector('.dash-side')?.scrollTop||0;
@@ -2900,9 +2938,19 @@ function render(){
  try{productStateData(S.currentUser?.sellerId||currentSeller()?.id||"");}catch(e){}
  const r=route();
  const pcfg=ensurePlatformConfig();
+ // Every application route requires a real Supabase Auth session.
+ // The only public surface is the sign-in/sign-up gate.
+ if(!S.currentUser){document.getElementById("app").innerHTML=guestGate();applyPlatformConfig();return;}
  if(pcfg.features?.maintenanceMode&&r!=="admin"&&!r.startsWith("admin")){document.getElementById("app").innerHTML=`${header()}<main class="page"><div class="container auth-box"><h2>Website Maintenance</h2><p class="muted">Sale Earn is temporarily under maintenance. Please try again later.</p></div></main>${footer()}`;applyPlatformConfig();return}
  if(r.startsWith("dashboard")&&!S.currentUser){go("home");setTimeout(()=>openAuth("signin","seller"),0);return}
- if(r.startsWith("admin")&&!S.currentUser){go("home");setTimeout(()=>openAuth("signin","admin"),0);return}
+ if(r.startsWith("admin")&&!isAdmin()){
+  // Never render any admin route for a non-admin account.
+  // Send signed-in users to the admin sign-in gate as well, instead of exposing the panel.
+  if(S.currentUser){S.currentUser=null;try{save()}catch(e){}}
+  go("home");
+  setTimeout(()=>openAuth("signin","admin"),0);
+  return;
+}
  let out="";
  if(r==="home")out=home();
  else if(r==="market")out=market();
@@ -3265,7 +3313,7 @@ window.studioOriginalPayout=window.requestPayout;
  const num=(id,def=0)=>Math.max(0,Number(document.getElementById(id)?.value??def));
  const val=id=>document.getElementById(id)?.value??'';
  const bool=id=>!!document.getElementById(id)?.checked;
- window.isSuperAdmin=function(){return !!S.currentUser&&(String(S.currentUser.id)==='55eb2c79-777b-4c9e-8a83-d824b2b24478'||String(S.currentUser.email||'').toLowerCase()==='mohitghasoliya89@gmail.com'||S.currentUser.isAdmin===true)};
+ window.isSuperAdmin=function(){return isAdmin()};
  window.adminOnly=function(){if(!S.currentUser){openAuth('signin','admin');return false}if(!window.isSuperAdmin()){toast('Admin access required');return false}return true};
  window.logAdminAudit=function(action,targetId,meta={}){if(!window.isSuperAdmin())return;S.adminAuditLog=S.adminAuditLog||[];S.adminAuditLog.unshift({id:uid('audit'),action,targetId,date:nowISO(),adminId:S.currentUser.id,meta:meta||{}});if(S.adminAuditLog.length>3000)S.adminAuditLog.length=3000};
  window.adminAudit=function(action,targetId,meta={}){logAdminAudit(action,targetId,meta);logSecurityEvent('ADMIN_ACTION',{action,targetId,meta})};
@@ -3644,7 +3692,9 @@ document.addEventListener('input',e=>{if(e.target.matches('.admin-content input,
 document.addEventListener('change',e=>{if(e.target.matches('.admin-content select')&&!e.target.hasAttribute('onchange')){dirtyFields=true;status('idle','Unsaved fields');}});
 const oldAdminNav=adminNav;window.adminNav=function(r){if(dirtyFields&&!confirm('Leave this form without saving your edits?'))return;dirtyFields=false;mobileOpen=false;document.body.classList.remove('as-menu-open');return oldAdminNav(r);};
 const originalRender=render;window.render=function(){
- const adminRoute=route().startsWith('admin');document.body.classList.toggle('se-admin',adminRoute&&isAdmin());if(!adminRoute){mobileOpen=false;document.body.classList.remove('as-menu-open');}
+ const adminRoute=route().startsWith('admin');
+if(adminRoute&&!isAdmin()){document.body.classList.remove('se-admin');return;}
+document.body.classList.toggle('se-admin',adminRoute&&isAdmin());if(!adminRoute){mobileOpen=false;document.body.classList.remove('as-menu-open');}
  originalRender();
  if(adminRoute&&isAdmin()){
   const root=document.querySelector('.admin-content');
