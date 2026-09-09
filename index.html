@@ -1165,24 +1165,135 @@ function validateReferralUpgradeTarget(level){
 
 </script>
 <script>
-const SUPABASE_URL = "https://wbeyiqqmozuertuiwhmo.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_8ZNwIk8AM3dWMso1uL4Ftg_o_VG9rFR";
+const SUPABASE_URL = "https://ivrfknfpfjhjytbixqcc.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_3YyPAERqua80hvH2sbvBnw_5qX8l0w7";
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 let SUPABASE_READY = false;
+let SUPABASE_AUTH_BOOTSTRAP=false;
+supabaseClient.auth.onAuthStateChange((event,session)=>{
+  if(event==='SIGNED_OUT'){
+    S.currentUser=null;
+    try{sePersist();}catch(e){}
+    if(typeof render==='function') render();
+    return;
+  }
+  if((event==='SIGNED_IN'||event==='INITIAL_SESSION'||event==='TOKEN_REFRESHED') && session?.user && !SUPABASE_AUTH_BOOTSTRAP){
+    SUPABASE_AUTH_BOOTSTRAP=true;
+    Promise.resolve(syncSupabaseAdmin(session.user)).then(()=>{
+      if(typeof ensureStoreForUser==='function') ensureStoreForUser();
+      if(typeof queueNormalizedSync==='function') queueNormalizedSync();
+      if(typeof render==='function') render();
+    }).finally(()=>{SUPABASE_AUTH_BOOTSTRAP=false;});
+  }
+});
+async function uploadSaleEarnPublicImage(fileOrBlob, folder, ext="webp") {
+  try {
+    const {data:{session}} = await supabaseClient.auth.getSession();
+    const uid=session?.user?.id;
+    if(!uid) throw new Error("Please sign in before uploading images.");
+    const path=`${uid}/${folder}/${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
+    const {error}=await supabaseClient.storage.from("product-images").upload(path,fileOrBlob,{contentType:fileOrBlob.type||`image/${ext}`,upsert:false});
+    if(error) throw error;
+    const {data}=supabaseClient.storage.from("product-images").getPublicUrl(path);
+    if(!data?.publicUrl) throw new Error("Could not create image URL.");
+    return data.publicUrl;
+  } catch(e) { console.warn("Image upload failed",e); throw e; }
+}
+let NORMALIZED_SYNC_TIMER=null;
+let NORMALIZED_SYNC_BUSY=false;
+let NORMALIZED_SYNC_PENDING=false;
+function normalizedOwnerId(sellerId){
+ const ss=S.sellers?.[sellerId], owner=ss?.owner;
+ const u=S.users?.find(x=>x.sellerId===sellerId||x.id===owner||x.name===owner);
+ return u?.id || (S.currentUser?.sellerId===sellerId ? S.currentUser.id : null);
+}
+async function syncNormalizedCore(){
+ if(NORMALIZED_SYNC_BUSY||!SUPABASE_READY||ONLINE_LOADING)return;
+ const {data:{session}}=await supabaseClient.auth.getSession();
+ const me=session?.user;
+ if(!me)return;
+ NORMALIZED_SYNC_BUSY=true;
+ try{
+  const u=S.users?.find(x=>x.id===me.id)||S.currentUser;
+  if(u){
+   const r=await supabaseClient.from('profiles').upsert({id:me.id,email:me.email||u.email||null,display_name:u.name||me.user_metadata?.name||me.email?.split('@')[0]||'User',role:u.isAdmin?'admin':(u.role||'user'),score:Number(u.score||0)},{onConflict:'id'});
+   if(r.error)console.warn('profiles sync:',r.error.message);
+  }
+  const sid=u?.sellerId,ss=sid?S.sellers?.[sid]:null;
+  if(ss){
+   const r=await supabaseClient.from('sellers').upsert({user_id:me.id,store_name:ss.name||ss.storeName||'',status:ss.suspended?'suspended':'active'},{onConflict:'user_id'});
+   if(r.error)console.warn('sellers sync:',r.error.message);
+  }
+  const ps=(S.products||[]).filter(x=>normalizedOwnerId(x.sellerId)===me.id);
+  if(ps.length){
+   const rows=ps.map(x=>({id:String(x.id),seller_id:me.id,title:String(x.title||'Untitled'),description:x.description||null,price:Number(x.price||0),status:x.status==='deleted'?'deleted':(x.status==='warning'?'warning':'active'),file_url:x.links?.[0]||x.deliveryUrl||null,image_url:x.image||null}));
+   const r=await supabaseClient.from('products').upsert(rows,{onConflict:'id'});
+   if(r.error)console.warn('products sync:',r.error.message);
+  }
+  const os=(S.orders||[]).filter(x=>x.customerId===me.id||normalizedOwnerId(x.sellerId)===me.id);
+  if(os.length){
+   const rows=os.map(x=>({id:String(x.id),buyer_id:x.customerId||null,seller_id:normalizedOwnerId(x.sellerId),product_id:x.productId||null,product_title:product(x.productId)?.title||x.productTitle||'Deleted product',amount:Number(x.amount||0),status:String(x.status||'PENDING').toLowerCase(),created_at:x.date||new Date().toISOString()})).filter(x=>x.seller_id);
+   if(rows.length){const r=await supabaseClient.from('orders').upsert(rows,{onConflict:'id'});if(r.error)console.warn('orders sync:',r.error.message);}
+  }
+  const ps2=(S.payouts||[]).filter(x=>x.userId===me.id||x.sellerId===sid);
+  if(ps2.length){
+   const rows=ps2.map(x=>({id:String(x.id),user_id:me.id,amount:Number(x.amount||0),status:String(x.status||'PENDING').toLowerCase(),payment_method:x.method||x.paymentMethod||null,payment_details:x.paymentDetails||{},returned_amount:Number(x.returnedAmount||0),cancelled_at:x.cancelledAt||null,created_at:x.date||x.createdAt||new Date().toISOString(),updated_at:new Date().toISOString()}));
+   const r=await supabaseClient.from('payouts').upsert(rows,{onConflict:'id'});if(r.error)console.warn('payouts sync:',r.error.message);
+  }
+  const ws=(S.warnings||[]).filter(x=>x.userId===me.id||x.sellerId===sid);
+  if(ws.length){
+   const rows=ws.map(x=>({id:String(x.id),user_id:x.userId||me.id,product_id:x.productId||null,product_title:x.productTitle||product(x.productId)?.title||null,title:x.title||'Warning',message:x.message||'',created_by:x.createdBy||null,created_at:x.date||x.createdAt||new Date().toISOString(),deleted_at:x.deletedAt||null}));
+   const r=await supabaseClient.from('warnings').upsert(rows,{onConflict:'id'});if(r.error)console.warn('warnings sync:',r.error.message);
+  }
+ }catch(e){console.warn('Normalized Supabase sync failed',e)}
+ finally{
+  NORMALIZED_SYNC_BUSY=false;
+  if(NORMALIZED_SYNC_PENDING){NORMALIZED_SYNC_PENDING=false;queueNormalizedSync();}
+ }
+}
+function queueNormalizedSync(){
+ if(!SUPABASE_READY||ONLINE_LOADING)return;
+ NORMALIZED_SYNC_PENDING=true;
+ clearTimeout(NORMALIZED_SYNC_TIMER);
+ NORMALIZED_SYNC_TIMER=setTimeout(()=>{NORMALIZED_SYNC_PENDING=false;syncNormalizedCore()},1500);
+}
+async function uploadSaleEarnPrivateFile(file,folder='products'){
+ const {data:{session}}=await supabaseClient.auth.getSession();
+ const uid=session?.user?.id;
+ if(!uid)throw new Error('Please sign in before uploading files.');
+ if(!file)throw new Error('No file selected.');
+ const safe=String(file.name||'file').replace(/[^a-zA-Z0-9._-]/g,'_');
+ const path=`${uid}/${folder}/${Date.now()}_${Math.random().toString(36).slice(2,8)}_${safe}`;
+ const {error}=await supabaseClient.storage.from('product-files').upload(path,file,{contentType:file.type||'application/octet-stream',upsert:false});
+ if(error)throw error;
+ return path;
+}
+function dataUrlToBlob(dataUrl){
+  const [meta,b64]=String(dataUrl).split(",");
+  const mime=(meta.match(/data:([^;]+)/)||[])[1]||"image/webp";
+  const bin=atob(b64||""); const bytes=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+  return new Blob([bytes],{type:mime});
+}
 async function syncSupabaseAdmin(user){
   if(!user) return false;
   try{
-    const {data,error}=await supabaseClient.from("admin_users").select("user_id").eq("user_id",user.id).maybeSingle();
-    if(error){console.warn("Admin role check failed",error);return false}
-    const local=S.users.find(u=>u.id===user.id)||{id:user.id,name:user.user_metadata?.name||user.email?.split("@")[0]||"User",email:user.email||"",role:"user",verified:true};
-    local.isAdmin=!!data;
-    local.email=user.email||local.email;
-    if(!S.users.some(u=>u.id===local.id)) S.users.push(local);
-    S.currentUser=local;
-    ensureStoreForUser();
-    save();
-    return !!data;
-  }catch(e){console.warn(e);return false}
+    const [{data:adminRow,error:adminError},{data:profile,error:profileError}]=await Promise.all([
+      supabaseClient.from("admin_users").select("user_id").eq("user_id",user.id).maybeSingle(),
+      supabaseClient.from("profiles").select("id,email,display_name,role,score").eq("id",user.id).maybeSingle()
+    ]);
+    if(adminError){console.warn("Admin role check failed",adminError);}
+    if(profileError && profileError.code!=="PGRST116"){console.warn("Profile load failed",profileError);}
+    const local=S.users.find(u=>u.id===user.id);
+    if(local){
+      local.email=user.email||profile?.email||local.email||"";
+      local.name=profile?.display_name||user.user_metadata?.name||local.name||user.email?.split("@")[0]||"User";
+      local.role=profile?.role||local.role||"user";
+      if(profile && Number.isFinite(Number(profile.score))) local.score=Number(profile.score);
+      local.verified=true;
+    }
+    return !!adminRow;
+  }catch(e){console.warn("Supabase auth/profile sync failed",e);return false}
 }
 async function restoreSupabaseSession(){
   try{
@@ -1192,7 +1303,7 @@ async function restoreSupabaseSession(){
     ONLINE_LOADING=true;
     const ok=await restoreOnlineState();
     ONLINE_LOADING=false;
-    if(ok){subscribeOnlineState();startOnlinePolling();}
+    if(ok){subscribeOnlineState();startOnlinePolling();queueNormalizedSync();}
     render();
     window.hideSaleEarnLoader?.();
   }catch(e){ONLINE_LOADING=false;console.warn("Supabase session restore failed",e);render();window.hideSaleEarnLoader?.()}
@@ -1336,7 +1447,7 @@ Object.values(S.sellers).forEach(ss=>{if(!ss.referralCode)ss.referralCode=(ss.ow
    No database schema or RLS changes. One full initial read; small version checks later. */
 const ONLINE_TABLE='saleearn_app_state';
 let ONLINE_READY=false,ONLINE_LOADING=false,ONLINE_SYNC_TIMER=null,ONLINE_CHANNEL=null,ONLINE_POLL_TIMER=null,ONLINE_LAST_REMOTE='',ONLINE_LOCAL_DIRTY=false;
-const SE_SYNC_CONFIG=Object.freeze({pollMs:30000,debounceMs:2000,maxWaitMs:8000,focusThrottleMs:15000,maxRetryMs:60000,maxRetries:5});
+const SE_SYNC_CONFIG=Object.freeze({pollMs:30000,debounceMs:1200,maxWaitMs:5000,focusThrottleMs:15000,maxRetryMs:15000,maxRetries:5});
 let seBase=null,seVersion=null,seExists=false,seSyncKey='',seWriteBusy=false,seReadBusy=false,seDirtySince=0,seFailures=0,seRetryAt=0,seLastCheck=0,seStopped=false,seMutation=0,seStorageWarned=false;
 const seCounters={fullReads:0,versionReads:0,writes:0,skippedWrites:0,conflicts:0};
 function onlineSnapshot(){return {users:S.users||[],sellers:S.sellers||{},products:S.products||[],orders:S.orders||[],reviews:S.reviews||{},follows:S.follows||{},payouts:S.payouts||[],ads:S.ads||[],referrals:S.referrals||[],subscriptions:S.subscriptions||[],warnings:S.warnings||[],devices:S.devices||[],deletedProducts:S.deletedProducts||[],balancePayments:S.balancePayments||[],drafts:S.drafts||[],productActivity:S.productActivity||[],adminAuditLog:S.adminAuditLog||[],adminControls:S.adminControls||{},platformConfig:S.platformConfig||{},riskAlerts:S.riskAlerts||[],coupons:S.coupons||[],couponRedemptions:S.couponRedemptions||[],storeThemes:S.storeThemes||{},securityEvents:S.securityEvents||[],sellerRankings:S.sellerRankings||[],growthGoals:S.growthGoals||{},notifications:S.notifications||[],messages:S.messages||[],disputes:S.disputes||[],refunds:S.refunds||[]}}function onlineSnapshotKey(data){return JSON.stringify(data||{});}
@@ -1382,7 +1493,7 @@ function save(){
  sePersist();if(!ONLINE_READY||ONLINE_LOADING)return;
  const current=onlineSnapshotKey(onlineSnapshot());
  if(current===seSyncKey){seCounters.skippedWrites++;if(!seWriteBusy){ONLINE_LOCAL_DIRTY=false;seDirtySince=0;clearTimeout(ONLINE_SYNC_TIMER);}return;}
- ONLINE_LOCAL_DIRTY=true;seMutation++;if(!seDirtySince)seDirtySince=Date.now();queueOnlineSync();
+ ONLINE_LOCAL_DIRTY=true;seMutation++;if(!seDirtySince)seDirtySince=Date.now();queueOnlineSync();queueNormalizedSync();
 }
 function queueOnlineSync(){
  if(!ONLINE_READY||!ONLINE_LOCAL_DIRTY||seStopped||!seOnline())return;
@@ -1407,34 +1518,46 @@ async function pushOnlineState(){
  if(onlineSnapshotKey(onlineSnapshot())===seSyncKey){ONLINE_LOCAL_DIRTY=false;seCounters.skippedWrites++;return;}
  seWriteBusy=true;clearTimeout(ONLINE_SYNC_TIMER);
  try{
-  const sent=seClone(onlineSnapshot()),sentKey=onlineSnapshotKey(sent),sentMutation=seMutation,base=seClone(seBase||{});
-  const meta=await seReadVersion();
-  let row=seExists?{data:seClone(seBase),updated_at:seVersion}:null;
-  if(!!meta!==seExists||(meta?.updated_at??null)!==seVersion)row=await seReadFull();
-  // A null/missing revision cannot safely identify a cached full snapshot.
-  else if(meta&&meta.updated_at==null)row=await seReadFull();
-  const remote=row?.data||{},merged=seMerge(base,sent,remote)||{};
-  if(seSame(merged,remote)){
-   seSetBase(row);const current=onlineSnapshot();if(seMutation===sentMutation&&onlineSnapshotKey(current)===sentKey)seInstall(merged);
-   else seInstall(seMerge(sent,seClone(current),merged));
-  }else{
+  const sent=seClone(onlineSnapshot()),sentKey=onlineSnapshotKey(sent),sentMutation=seMutation;
+  // Always start from the newest server revision. A failed compare-and-swap is
+  // retried immediately instead of waiting for the normal debounce timer.
+  for(let attempt=0;attempt<5;attempt++){
+   const row=await seReadFull(),base=seClone(row?.data||{}),remote=seClone(row?.data||{});
+   const merged=seMerge(base,sent,remote)||{};
+   if(seSame(merged,remote)){
+    seSetBase(row);
+    const current=onlineSnapshot();
+    if(seMutation===sentMutation&&onlineSnapshotKey(current)===sentKey)seInstall(merged);
+    else seInstall(seMerge(sent,seClone(current),merged));
+    seSyncKey=onlineSnapshotKey(seBase||{});
+    ONLINE_LOCAL_DIRTY=onlineSnapshotKey(onlineSnapshot())!==seSyncKey;
+    seDirtySince=ONLINE_LOCAL_DIRTY?Date.now():0;seSucceeded();return;
+   }
    const previous=row?.updated_at??null;
    const previousMs=Date.parse(previous||'');
    const stamp=new Date(Math.max(Date.now(),Number.isFinite(previousMs)?previousMs+1:0)).toISOString();
    let q;
-   if(row){q=supabaseClient.from(ONLINE_TABLE).update({data:merged,updated_at:stamp}).eq('id',1);q=previous===null?q.is('updated_at',null):q.eq('updated_at',previous);}
-   else q=supabaseClient.from(ONLINE_TABLE).insert({id:1,data:merged,updated_at:stamp});
-   seCounters.writes++;const result=await q.select('updated_at').maybeSingle();
-   if(result.error){if(String(result.error.code)==='23505'){seCounters.conflicts++;throw {code:'SYNC_CONFLICT',message:'Another browser created the shared record. Retry after refresh.'};}throw result.error;}
-   if(!result.data){seCounters.conflicts++;throw {code:'SYNC_CONFLICT',message:'Another browser updated the record during this save.'};}
+   if(row){
+    q=supabaseClient.from(ONLINE_TABLE).update({data:merged,updated_at:stamp}).eq('id',1);
+    q=previous===null?q.is('updated_at',null):q.eq('updated_at',previous);
+   }else{
+    q=supabaseClient.from(ONLINE_TABLE).insert({id:1,data:merged,updated_at:stamp});
+   }
+   seCounters.writes++;
+   const result=await q.select('updated_at').maybeSingle();
+   if(result.error){
+    if(String(result.error.code)==='23505'){seCounters.conflicts++;continue;}
+    throw result.error;
+   }
+   if(!result.data){seCounters.conflicts++;continue;}
    seSetBase({data:merged,updated_at:result.data.updated_at});
-   const current=seClone(onlineSnapshot());seInstall(seMerge(sent,current,merged));
+   const current=seClone(onlineSnapshot());
+   seInstall(seMerge(sent,current,merged));
+   seSyncKey=onlineSnapshotKey(seBase||{});
+   ONLINE_LOCAL_DIRTY=onlineSnapshotKey(onlineSnapshot())!==seSyncKey;
+   seDirtySince=ONLINE_LOCAL_DIRTY?Date.now():0;seSucceeded();return;
   }
-  // The acknowledged baseline must reflect only server-confirmed data, not edits
-  // made while this request was in flight.
-  seSyncKey=onlineSnapshotKey(seBase||{});
-  ONLINE_LOCAL_DIRTY=onlineSnapshotKey(onlineSnapshot())!==seSyncKey;
-  seDirtySince=ONLINE_LOCAL_DIRTY?Date.now():0;seSucceeded();
+  throw {code:'SYNC_CONFLICT',message:'Cloud changed while saving; retrying with the latest data.'};
  }catch(e){seFailure(e);}
  finally{seWriteBusy=false;if(ONLINE_LOCAL_DIRTY&&!seStopped)queueOnlineSync();}
 }
@@ -1965,7 +2088,7 @@ function thumbMini(p){return `<div class="mini-thumb">${p.image?`<img src="${esc
 function openAuth(mode="signin",reason=""){
  if(S.currentUser){toast("You are already logged in");return}
  window.authMode=mode;window.authReason=reason;
- document.getElementById("modalRoot").innerHTML=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal"><button class="btn iconbtn close" onclick="closeModal()">×</button><div class="tabs"><button class="${mode==='signin'?'active':''}" onclick="openAuth('signin','${reason}')">Login</button><button class="${mode==='signin'?'active':''}" onclick="openAuth('signin','${reason}')">Sign In</button><button class="${mode==='signup'?'active':''}" onclick="openAuth('signup','${reason}')">Sign Up</button></div><div id="authBody">${authBody(mode)}</div></div></div>`
+ document.getElementById("modalRoot").innerHTML=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal"><button class="btn iconbtn close" onclick="closeModal()">×</button><div class="tabs"><button class="${mode==='signin'?'active':''}" onclick="openAuth('signin','${reason}')">Sign In</button><button class="${mode==='signup'?'active':''}" onclick="openAuth('signup','${reason}')">Sign Up</button></div><div id="authBody">${authBody(mode)}</div></div></div>`
 }
 function authBody(mode){
  if(mode==="signup")return `<h2>Create your account</h2><p class="muted">A 6-digit verification code will be sent to your email.</p><div class="field"><label>Name</label><input id="authName" placeholder="Your name" autocomplete="name"></div><div class="field"><label>Email</label><input id="authEmail" type="email" placeholder="you@example.com" autocomplete="email"></div><p class="small muted">Every verified account can buy and sell. Your store is created automatically.</p><div class="modal-footer"><button class="btn primary" onclick="signup()">Send Verification Code</button></div>`;
@@ -2017,6 +2140,11 @@ async function verifyAuthOtp(){
      u.verified=true;
    }
    u.isAdmin=await syncSupabaseAdmin(user);
+   const profileRow=(await supabaseClient.from('profiles').select('display_name,role,score').eq('id',user.id).maybeSingle()).data;
+   if(profileRow?.display_name) u.name=profileRow.display_name;
+   if(profileRow?.role) u.role=profileRow.role;
+   if(profileRow && Number.isFinite(Number(profileRow.score))) u.score=Number(profileRow.score);
+   if(u.isAdmin) u.role='admin';
    S.currentUser=u;
    ensureStoreForUser();
    save();
@@ -2229,11 +2357,11 @@ function couponDiscount(c,price){if(!c)return 0;return Math.min(price,c.type==='
 function applyCheckoutCoupon(){const p=product(window.pendingBuy?.id);if(!p)return;const code=(document.getElementById('buyCoupon')?.value||'').trim().toUpperCase();const userId=window.pendingBuy?.userId||S.currentUser?.id||'guest';const c=validCoupon(code,p.id,userId);if(!c){toast('Invalid, expired, exhausted or already-used coupon');return}const d=couponDiscount(c,p.price);window.pendingBuy={...window.pendingBuy,couponId:c.id,couponCode:c.code,discount:d,amount:Math.max(0,p.price-d)};toast('Coupon applied');openPayment()}
 function storeTheme(sid){return S.storeThemes?.[sid]||{tagline:'',banner:'',accent:'',layout:'grid',showBio:true}}
 function readStoreImage(file,maxBytes,label,cb){if(!file)return;if(!file.type||!file.type.startsWith('image/')){toast(label+' must be an image');return}if(file.size>maxBytes){toast(label+' must be '+(maxBytes/(1024*1024)).toFixed(0)+' MB or smaller');return}const r=new FileReader();r.onload=()=>cb(String(r.result||''));r.onerror=()=>toast('Could not read '+label.toLowerCase());r.readAsDataURL(file)}
-function previewStoreLogo(e){const f=e.target.files?.[0];readStoreImage(f,3*1024*1024,'Logo Image',data=>{const s=currentSeller();if(!s)return;s.logo=data;save();const box=document.getElementById('storeLogoPreview');if(box)box.innerHTML='<img src="'+esc(data)+'" alt="Store logo">';toast('Logo saved');})}
-function previewStoreBanner(e){const f=e.target.files?.[0];readStoreImage(f,5*1024*1024,'Banner Image',data=>{const s=currentSeller();if(!s)return;const t=storeTheme(s.id);S.storeThemes[s.id]={...t,banner:data};save();const box=document.getElementById('storeBannerPreview');if(box){box.style.backgroundImage="url(''+data.replace(/'/g,'%27')+'')";}toast('Banner saved');})}
+function previewStoreLogo(e){const f=e.target.files?.[0];readStoreImage(f,2*1024*1024,'Logo Image',data=>{const s=currentSeller();if(!s)return;s.logo=data;save();const box=document.getElementById('storeLogoPreview');if(box)box.innerHTML='<img src="'+esc(data)+'" alt="Store logo">';toast('Logo saved');})}
+function previewStoreBanner(e){const f=e.target.files?.[0];readStoreImage(f,2*1024*1024,'Banner Image',data=>{const s=currentSeller();if(!s)return;const t=storeTheme(s.id);S.storeThemes[s.id]={...t,banner:data};save();const box=document.getElementById('storeBannerPreview');if(box){box.style.backgroundImage="url(''+data.replace(/'/g,'%27')+'')";}toast('Banner saved');})}
 function removeStoreLogo(){const s=currentSeller();if(!s)return;s.logo='';save();const box=document.getElementById('storeLogoPreview');if(box)box.innerHTML='<span>SE</span>';toast('Logo removed')}
 function removeStoreBanner(){const s=currentSeller();if(!s)return;const t=storeTheme(s.id);S.storeThemes[s.id]={...t,banner:''};save();const box=document.getElementById('storeBannerPreview');if(box)box.style.backgroundImage='none';toast('Banner removed')}
-function dashStoreSettings(){const s=currentSeller(),t=storeTheme(s.id);return dashShell('settings',`<div class="dash-card"><div class="section-head"><div><h2>Mini Business Store & Customization</h2><p>Customize your public storefront without changing marketplace product data.</p></div></div><div class="field"><label>Store Logo Image</label><div id="storeLogoPreview" class="logo-upload" style="margin:8px 0 10px">${s.logo?`<img src="${esc(s.logo)}" alt="Store logo">`:'<span>SE</span>'}</div><input id="storeLogoFile" type="file" accept="image/*" onchange="previewStoreLogo(event)"><small class="muted">Image only · maximum 3 MB.</small><div style="margin-top:8px"><button type="button" class="btn" onclick="removeStoreLogo()">Remove Logo</button></div></div><div class="field"><label>Store Banner Image</label><div id="storeBannerPreview" class="store-banner" style="margin:8px 0 10px;${t.banner?`background-image:url('${esc(t.banner)}');`:''}"></div><input id="storeBannerFile" type="file" accept="image/*" onchange="previewStoreBanner(event)"><small class="muted">Image only · maximum 5 MB.</small><div style="margin-top:8px"><button type="button" class="btn" onclick="removeStoreBanner()">Remove Banner</button></div></div><div class="field"><label>Store Name</label><input id="setName" value="${esc(s.name||'')}"></div><div class="field"><label>Tagline</label><input id="setTagline" value="${esc(t.tagline||'')}" placeholder="Premium creator resources"></div><div class="field"><label>Banner Image URL (optional)</label><input id="setBanner" value="${esc(t.banner&&/^https?:\/\//i.test(t.banner)?t.banner:'')}" placeholder="https://..."><small class="muted">You can use the upload above or an image URL.</small></div><div class="field"><label>Store Bio</label><textarea id="setBio">${esc(s.bio||'')}</textarea></div><div class="field"><label>Support Contact</label><input id="setContact" value="${esc(s.support||'')}"></div><div class="field"><label>Store Layout</label><select id="setLayout"><option value="grid" ${t.layout==='grid'?'selected':''}>Grid</option><option value="list" ${t.layout==='list'?'selected':''}>List</option></select></div><div class="modal-footer"><button class="btn primary" onclick="saveAdvancedStoreSettings()">Save Store</button></div></div>`)}
+function dashStoreSettings(){const s=currentSeller(),t=storeTheme(s.id);return dashShell('settings',`<div class="dash-card"><div class="section-head"><div><h2>Mini Business Store & Customization</h2><p>Customize your public storefront without changing marketplace product data.</p></div></div><div class="field"><label>Store Logo Image</label><div id="storeLogoPreview" class="logo-upload" style="margin:8px 0 10px">${s.logo?`<img src="${esc(s.logo)}" alt="Store logo">`:'<span>SE</span>'}</div><input id="storeLogoFile" type="file" accept="image/*" onchange="previewStoreLogo(event)"><small class="muted">Image only · maximum 2 MB.</small><div style="margin-top:8px"><button type="button" class="btn" onclick="removeStoreLogo()">Remove Logo</button></div></div><div class="field"><label>Store Banner Image</label><div id="storeBannerPreview" class="store-banner" style="margin:8px 0 10px;${t.banner?`background-image:url('${esc(t.banner)}');`:''}"></div><input id="storeBannerFile" type="file" accept="image/*" onchange="previewStoreBanner(event)"><small class="muted">Image only · maximum 2 MB.</small><div style="margin-top:8px"><button type="button" class="btn" onclick="removeStoreBanner()">Remove Banner</button></div></div><div class="field"><label>Store Name</label><input id="setName" value="${esc(s.name||'')}"></div><div class="field"><label>Tagline</label><input id="setTagline" value="${esc(t.tagline||'')}" placeholder="Premium creator resources"></div><div class="field"><label>Banner Image URL (optional)</label><input id="setBanner" value="${esc(t.banner&&/^https?:\/\//i.test(t.banner)?t.banner:'')}" placeholder="https://..."><small class="muted">You can use the upload above or an image URL.</small></div><div class="field"><label>Store Bio</label><textarea id="setBio">${esc(s.bio||'')}</textarea></div><div class="field"><label>Support Contact</label><input id="setContact" value="${esc(s.support||'')}"></div><div class="field"><label>Store Layout</label><select id="setLayout"><option value="grid" ${t.layout==='grid'?'selected':''}>Grid</option><option value="list" ${t.layout==='list'?'selected':''}>List</option></select></div><div class="modal-footer"><button class="btn primary" onclick="saveAdvancedStoreSettings()">Save Store</button></div></div>`)}
 function saveAdvancedStoreSettings(){const s=currentSeller();const t=storeTheme(s.id);s.name=document.getElementById('setName')?.value.trim()||s.name;s.bio=document.getElementById('setBio')?.value||'';s.support=document.getElementById('setContact')?.value.trim()||'';const url=document.getElementById('setBanner')?.value.trim()||'';S.storeThemes[s.id]={...t,tagline:document.getElementById('setTagline')?.value.trim()||'',banner:url||t.banner||'',layout:document.getElementById('setLayout')?.value||'grid'};adminAudit('Updated store customization',s.id,{seller:true});save();toast('Store customization saved');render()}
 function adminSecurity(){const c=advState();return adminLayout('security','Payment & Security Protection',`<div class="admin-card"><h2>Protection Status</h2><div class="security-row"><span>Checkout freeze</span><b>${c.payments?'BLOCKED':'OPEN'}</b></div><div class="security-row"><span>Withdrawal freeze</span><b>${c.withdrawals?'BLOCKED':'OPEN'}</b></div><div class="security-row"><span>Advertising freeze</span><b>${c.ads?'BLOCKED':'OPEN'}</b></div><div class="security-row"><span>Referral freeze</span><b>${c.referrals?'BLOCKED':'OPEN'}</b></div><div class="security-row"><span>Audit events</span><b>${(S.securityEvents||[]).length}</b></div></div><div class="admin-card"><h2>Security Rules</h2><ul class="muted"><li>Client-side prototype payments are never treated as real settlement proof.</li><li>Production payments must be verified on a trusted server/webhook before balance or access changes.</li><li>Risk signals are advisory and never claim identity certainty.</li><li>Admin actions are logged with timestamp and target.</li></ul></div>`)}
 function adminAuditAdvanced(){const rows=(S.adminAuditLog||[]);return adminLayout('audit','Admin Audit Log',`<div class="admin-card"><div class="section-head"><div><h2>Immutable-style Audit History</h2><div class="sub">The browser prototype keeps append-only records. Production should write these server-side with database policies.</div></div></div>${rows.map(x=>`<div class="security-row"><div><b>${esc(x.action)}</b><div class="small muted">${new Date(x.date).toLocaleString('en-IN')} · Admin ${esc(x.adminId||'-')} · Target ${esc(x.targetId||'-')}</div><div class="small muted">${esc(JSON.stringify(x.meta||{}))}</div></div></div>`).join('')||'<div class="admin-empty">No audit entries yet.</div>'}</div>`)}
@@ -2496,7 +2624,7 @@ function productForm(step=1,editId=null){
  const edit=editId?product(editId):null,x=edit||d,plan=currentSeller()?.plan||"FREE",fee=({FREE:.20,CE:.10,PRIME:.10,ENTERPRISE:.05}[plan]??.20),rev=Number(x.price||0)*(1-fee),discount=x.oldPrice>0&&x.price<x.oldPrice?Math.max(0,Math.round((1-x.price/x.oldPrice)*100)):0;
  return dashShell(editId?"products":"add",`<div class="dash-form"><div class="stepper"><span class="step ${step===1?"active":""}">1 · Product Information</span><span class="step ${step===2?"active":""}">2 · Files & Details</span><span class="step ${step===3?"active":""}">3 · Pricing</span></div>
  ${step===1?`<div class="field"><label>Product Title *</label><input id="pfTitle" value="${esc(x.title)}"></div><div class="form-grid"><div class="field"><label>Category *</label><select id="pfCategory" onchange="S.draft=S.draft||{};S.draft.category=this.value;save()">${["Courses","Reel Bundle","Editing Assets","Software"].map(c=>`<option value="${c}" ${x.category===c?"selected":""}>${c}</option>`).join("")}</select></div><div class="field"><label>Tags / Keywords *</label><input id="tagInput" value="${esc((x.tags||[]).join(", "))}" placeholder="Entertainment, AI Reels"></div></div><div class="tag-suggest">${tagSuggestions.map(t=>`<button type="button" onclick="addDraftTag('${t}')">＋ ${t}</button>`).join("")}</div><div class="field"><label>Description *</label><textarea id="pfDesc">${esc(x.description||"")}</textarea></div><div class="modal-footer"><button type="button" class="btn" onclick="goBack('dashboard/products')">← Back</button><button type="button" class="btn primary" onclick="saveStep1('${editId||""}')">Continue →</button></div>`
- :step===2?`<div class="field"><label>Product Image (max 5 MB, images only)</label><input type="file" accept="image/*" onchange="previewProductImage(event)" ${x.image?"":"required"}><div id="productPreview" class="logo-upload" style="width:260px;height:170px;margin-top:10px">${x.image?`<img src="${esc(x.image)}">`:"🖼️"}</div><small class="muted">JPG, PNG, WebP, GIF and other browser-recognized image formats. Maximum 5 MB.</small></div>
+ :step===2?`<div class="field"><label>Product Image (max 2 MB, images only)</label><input type="file" accept="image/*" onchange="previewProductImage(event)" ${x.image?"":"required"}><div id="productPreview" class="logo-upload" style="width:260px;height:170px;margin-top:10px">${x.image?`<img src="${esc(x.image)}">`:"🖼️"}</div><small class="muted">JPG, PNG, WebP, GIF and other browser-recognized image formats. Maximum 2 MB.</small></div>
  <div class="form-grid"><div class="field"><label>Total Files</label><input id="pfCount" type="number" min="1" max="50" step="1" value="${esc(Math.min(50,x.fileCount||x.links?.length||1))}" oninput="syncFileLinksFromCount()"></div><div class="field"><label>File Size</label><div style="display:flex;gap:8px"><input id="pfSizeValue" type="number" min="0" step="0.01" value="${esc(x.fileSizeValue??(String(x.fileSize||"").match(/^([0-9.]+)/)?.[1]||""))}" placeholder="250" style="flex:1"><select id="pfSizeUnit" style="width:110px"><option ${String(x.fileSizeUnit||"MB")==="MB"?"selected":""}>MB</option><option ${String(x.fileSizeUnit||"MB")==="GB"?"selected":""}>GB</option></select></div><small class="muted">Enter numbers only, e.g. 250 MB or 1.5 GB.</small></div></div>
  <div class="field"><label>Secure Delivery Links * <span class="small muted">(up to 50)</span></label><div id="fileLinksWrap">${Array.from({length:Math.min(50,Math.max(1,Number(x.fileCount||x.links?.length||1)))},(_,i)=>`<div class="repeat-row file-link-row" data-index="${i}"><div style="flex:1"><label class="small">File ${i+1}</label><input class="pfLink" value="${esc((x.links||[])[i]||"")}" placeholder="https://drive.google.com/..."></div><button type="button" class="btn danger" onclick="removeFileLink(${i})">Remove</button></div>`).join("")}</div><button type="button" class="btn" style="margin-top:10px" onclick="addFileLink()">＋ Add File Link</button><small class="muted">Each file needs its own HTTPS URL from an approved storage provider: Google Drive, Dropbox, OneDrive, MediaFire, Mega, Box, pCloud, etc.</small></div>
  <div class="field"><label>FAQ</label>${(x.faq||[]).map((f,i)=>`<div class="repeat-row"><input class="faqQ" value="${esc(f[0])}" placeholder="Question"><input class="faqA" value="${esc(f[1])}" placeholder="Answer"></div>`).join("")}</div>
@@ -2613,28 +2741,22 @@ async function prepareProductImage(file){
  if(dataUrl.length>1900000)dataUrl=canvas.toDataURL("image/jpeg",0.68);
  return {dataUrl,width:img.naturalWidth,height:img.naturalHeight};
 }
-function previewProductImage(e){
+async function previewProductImage(e){
  const f=e.target.files?.[0];if(!f)return;
  if(!f.type.startsWith("image/")){e.target.value="";toast("Only image files are allowed");return}
- if(f.size>5*1024*1024){e.target.value="";toast("Image must be 5 MB or smaller");return}
- const input=e.target;
- input.disabled=true;
- toast("Preparing image…");
- prepareProductImage(f).then(({dataUrl,width,height})=>{
-  S.draft=S.draft||{};S.draft.image=dataUrl;
-  // Store original aspect ratio metadata only; the image itself is never cropped.
-  S.draft.imageWidth=width;S.draft.imageHeight=height;
-
-  try{save()}catch(err){
-   delete S.draft.image;delete S.draft.imageWidth;delete S.draft.imageHeight;
-   throw new Error("Image is too large to save in this browser. Please choose a smaller image.");
-  }
+ if(f.size>2*1024*1024){e.target.value="";toast("Image must be 2 MB or smaller");return}
+ const input=e.target; input.disabled=true; toast("Uploading product image…");
+ try{
+  const {dataUrl,width,height}=await prepareProductImage(f);
+  const publicUrl=await uploadSaleEarnPublicImage(dataUrlToBlob(dataUrl),"products","webp");
+  S.draft=S.draft||{}; S.draft.image=publicUrl;
+  S.draft.imageWidth=width; S.draft.imageHeight=height;
+  save();
   const el=document.getElementById("productPreview");
-  if(el)el.innerHTML=`<img src="${dataUrl}" alt="Product image" title="${width} × ${height}px">`;
-  toast(`Image added — ${width} × ${height}px ratio preserved`);
- }).catch(err=>{
-  input.value="";toast(err?.message||"Could not process this image");
- }).finally(()=>{input.disabled=false});
+  if(el)el.innerHTML=`<img src="${esc(publicUrl)}" alt="Product image" title="${width} × ${height}px">`;
+  toast("Product image uploaded");
+ }catch(err){ console.warn(err); toast(err?.message||"Product image upload failed"); }
+ finally{input.disabled=false}
 }
 function publishProduct(editId){ if(!systemGuard('productUploads','Product uploads are temporarily disabled by Admin'))return; const rr=ensurePlatformConfig().rules||{}; const publishPrice=Number(document.getElementById("pfPrice")?.value||0); if(Number.isFinite(publishPrice)&&publishPrice<Number(rr.minProductPrice||0)){toast("Product price is below the Admin minimum");return} if(Number.isFinite(publishPrice)&&publishPrice>Number(rr.maxProductPrice||1e15)){toast("Product price exceeds the Admin maximum");return}
  collectStep2();const d=S.draft||{},old=Number(document.getElementById("pfOld")?.value),price=Number(document.getElementById("pfPrice")?.value);
@@ -2728,6 +2850,7 @@ function render(){
  else if(r==="admin/deleted")out=adminDeleted();
  else if(r==="admin/commission")out=adminCommission();
  else if(r==="admin/audit")out=adminAuditPage();
+  else if(r==="admin/mail")out=mailPanel();
  else if(r==="admin/system")out=adminSystem();
  else if(r==="dashboard/overview")out=dashOverview();
  else if(r==="dashboard/products")out=dashProducts();
@@ -3142,6 +3265,19 @@ window.adminToggleFeature=function(k){
 .admin-card h2,.admin-card h3{letter-spacing:-.01em}.admin-card .section-head{margin-bottom:14px}.admin-card textarea{min-height:110px}
 @media(max-width:900px){.ac-checks{gap:7px}.admin-card .form-grid{grid-template-columns:1fr}.admin-main{min-width:0}}
 </style>
+
+<style id="saleearn-mail-center">
+.mail-shell{display:grid;grid-template-columns:220px minmax(0,1fr);gap:18px;min-height:620px}
+.mail-sidebar{background:var(--ad-surface,#fff);border:1px solid var(--ad-line,#e5e7ef);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:5px}
+.mail-compose-btn{border:0;border-radius:9px;background:#6654d9;color:#fff;padding:12px 14px;font-weight:700;text-align:left;cursor:pointer;margin-bottom:10px}.mail-compose-btn:hover{background:#5846c9}
+.mail-nav{border:1px solid transparent;background:transparent;color:var(--ad-muted,#677084);border-radius:8px;padding:11px 12px;text-align:left;font-weight:650;display:flex;align-items:center;gap:9px;cursor:pointer}.mail-nav:hover{background:var(--ad-bg,#f5f6fa);color:var(--ad-text,#202331)}.mail-nav.active{background:var(--ad-soft,#eeebfc);color:var(--ad-accent,#6354da)}.mail-nav span{margin-left:auto;font-size:10px;padding:3px 7px;border-radius:99px;background:var(--ad-bg,#f5f6fa)}
+.mail-info-card{margin-top:auto;background:var(--ad-bg,#f5f6fa);border:1px solid var(--ad-line,#e5e7ef);border-radius:10px;padding:12px}.mail-info-card strong{font-size:12px}.mail-info-card p{font-size:11px;line-height:1.5;color:var(--ad-muted,#677084);margin:7px 0}.mail-info-card small{font-size:10px;color:var(--ad-muted,#677084)}
+.mail-main,.mail-list,.mail-detail{min-width:0}.mail-list{background:var(--ad-surface,#fff);border:1px solid var(--ad-line,#e5e7ef);border-radius:14px;overflow:hidden}.mail-list-head{display:flex;align-items:center;justify-content:space-between;padding:15px 17px;border-bottom:1px solid var(--ad-line,#e5e7ef)}.mail-count{margin-left:7px;background:var(--ad-bg,#f5f6fa);padding:4px 7px;border-radius:99px;font-size:10px;color:var(--ad-muted,#677084)}
+.mail-row{width:100%;border:0;border-bottom:1px solid var(--ad-line,#e5e7ef);background:transparent;color:var(--ad-text,#202331);display:flex;align-items:center;gap:12px;padding:14px 16px;text-align:left;cursor:pointer}.mail-row:hover,.mail-row.selected{background:var(--ad-bg,#f5f6fa)}.mail-row.unread{background:#faf9ff}.mail-avatar{width:36px;height:36px;flex:0 0 36px;border-radius:10px;background:var(--ad-soft,#eeebfc);color:var(--ad-accent,#6354da);display:grid;place-items:center;font-size:11px;font-weight:800}.mail-avatar.large{width:46px;height:46px;flex-basis:46px}.mail-row-main{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}.mail-row-main strong{font-size:12px}.mail-row-main span{font-size:12px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mail-row-main small{font-size:10px;color:var(--ad-muted,#677084);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mail-row-side{display:flex;flex-direction:column;align-items:flex-end;gap:6px}.mail-row-side small{font-size:10px;color:var(--ad-muted,#677084)}.mail-star{background:transparent;border:0;color:#a0a6b4;font-size:18px;padding:0}.mail-star.on{color:#d19b20}.mail-empty{text-align:center;padding:90px 20px;color:var(--ad-muted,#677084)}.mail-empty h3{margin:12px 0 5px;color:var(--ad-text,#202331)}.mail-empty p{margin:0;font-size:12px}.mail-empty-icon{font-size:42px;opacity:.55}
+.mail-detail{background:var(--ad-surface,#fff);border:1px solid var(--ad-line,#e5e7ef);border-radius:14px;padding:20px}.mail-detail-head{display:flex;justify-content:space-between;gap:10px;margin-bottom:28px}.mail-detail-actions{display:flex;gap:7px}.mail-detail-title{display:flex;align-items:center;gap:13px;padding-bottom:20px;border-bottom:1px solid var(--ad-line,#e5e7ef)}.mail-detail-title h2{margin:0 0 6px;font-size:20px}.mail-detail-body{padding:24px 8px;font-size:13px;line-height:1.85;white-space:normal;overflow-wrap:anywhere}.mail-compose-modal{width:min(680px,100%)}.mail-compose-head{display:flex;gap:12px;align-items:center;margin-bottom:18px}.mail-big-icon{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;background:#eeebfc;color:#6654d9;font-size:20px}.mail-compose-note{font-size:11px;line-height:1.6;color:var(--muted);background:#f7f8fc;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:12px}
+:root[data-theme="dark"] .mail-list,:root[data-theme="dark"] .mail-detail,:root[data-theme="dark"] .mail-sidebar{background:#101827;border-color:#263650;color:#edf3ff}:root[data-theme="dark"] .mail-row{color:#edf3ff;border-color:#263650}:root[data-theme="dark"] .mail-row:hover,:root[data-theme="dark"] .mail-row.selected{background:#17233a}:root[data-theme="dark"] .mail-row.unread{background:#151b30}:root[data-theme="dark"] .mail-compose-note{background:#0c1423;border-color:#263650}:root[data-theme="dark"] .mail-info-card{background:#0c1423;border-color:#263650}
+@media(max-width:800px){.mail-shell{grid-template-columns:1fr}.mail-sidebar{min-height:auto}.mail-info-card{margin-top:12px}.mail-detail-head{align-items:flex-start}.mail-row-side{display:none}}
+</style>
 <style>/* Admin Studio: scoped redesign; storefront CSS is preserved. */
 body.se-admin.se-admin{padding:0!important;overflow:hidden;background:#f5f6fa!important}
 body.se-admin.se-admin::before{display:none!important}
@@ -3241,7 +3377,7 @@ body.se-admin.se-admin .mobile-bottom-nav,body.se-admin.se-admin>.platform-annou
 (function(){
 'use strict';
 const $=id=>document.getElementById(id),cfg=()=>ensurePlatformConfig();
-const paths={grid:'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',sliders:'M4 7h16 M4 17h16 M8 4v6 M16 14v6',users:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M22 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75',box:'M12 3 3 8v9l9 5 9-5V8z M3 8l9 5 9-5 M12 13v9 M7.5 5.5l9 5',orders:'M6 3h12v18l-3-2-3 2-3-2-3 2z M9 7h6 M9 11h6 M9 15h3',wallet:'M3 6h17v14H3z M3 6V4h14v2 M15 11h6v5h-6z',arrow:'M5 12h14 M13 6l6 6-6 6',chart:'M4 19V5 M4 19h16 M8 15l4-5 4 2 4-7',star:'m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z',shield:'M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6z M8 12l3 3 5-6',clock:'M12 8v5l3 2 M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',tag:'M3 3h8l10 10-8 8L3 11z M7 7h.01',globe:'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0 M3 12h18 M12 3c5 5 5 13 0 18-5-5-5-13 0-18',bell:'M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9 M10 21h4',menu:'M4 6h16 M4 12h16 M4 18h16',exit:'M9 4H4v16h5 M12 12h9 M17 8l4 4-4 4',trash:'M3 6h18 M9 6V3h6v3 M6 6l1 15h10l1-15 M10 10v7 M14 10v7',bolt:'m13 2-9 12h7l-1 8 10-13h-7z',check:'M5 12l4 4L19 6',refresh:'M20 7v5h-5 M4 17v-5h5 M6 6a8 8 0 0 1 13 3 M18 18A8 8 0 0 1 5 15'};
+const paths={grid:'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',sliders:'M4 7h16 M4 17h16 M8 4v6 M16 14v6',users:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M22 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75',box:'M12 3 3 8v9l9 5 9-5V8z M3 8l9 5 9-5 M12 13v9 M7.5 5.5l9 5',orders:'M6 3h12v18l-3-2-3 2-3-2-3 2z M9 7h6 M9 11h6 M9 15h3',wallet:'M3 6h17v14H3z M3 6V4h14v2 M15 11h6v5h-6z',arrow:'M5 12h14 M13 6l6 6-6 6',chart:'M4 19V5 M4 19h16 M8 15l4-5 4 2 4-7',star:'m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z',shield:'M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6z M8 12l3 3 5-6',clock:'M12 8v5l3 2 M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',tag:'M3 3h8l10 10-8 8L3 11z M7 7h.01',globe:'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0 M3 12h18 M12 3c5 5 5 13 0 18-5-5-5-13 0-18',bell:'M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9 M10 21h4',mail:'M4 5h16v14H4z M4 7l8 6 8-6',menu:'M4 6h16 M4 12h16 M4 18h16',exit:'M9 4H4v16h5 M12 12h9 M17 8l4 4-4 4',trash:'M3 6h18 M9 6V3h6v3 M6 6l1 15h10l1-15 M10 10v7 M14 10v7',bolt:'m13 2-9 12h7l-1 8 10-13h-7z',check:'M5 12l4 4L19 6',refresh:'M20 7v5h-5 M4 17v-5h5 M6 6a8 8 0 0 1 13 3 M18 18A8 8 0 0 1 5 15'};
 const icon=k=>`<svg class="as-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${paths[k]||paths.grid}"/></svg>`;
 const initials=x=>String(x||'Admin').split(/\s+/).map(x=>x[0]).slice(0,2).join('').toUpperCase();
 let panel='website',mobileOpen=false,liveChannel=null,liveStarted=false,liveRevision=0,signalPending=false,liveDirty=false,flushTimer=null,publishing=false,liveWake=null;
@@ -3249,8 +3385,50 @@ let syncState='idle',syncText='Checking connection',lastSignalTime=0,dirtyFields
 function status(state,text){syncState=state;syncText=text;document.querySelectorAll('.as-sync').forEach(e=>{e.dataset.state=state;e.innerHTML='<i class="as-dot"></i><span>'+esc(text)+'</span>';});}
 function when(v){const d=new Date(v);return Number.isNaN(d.getTime())?'—':d.toLocaleDateString('en-IN',{day:'numeric',month:'short'});}
 function human(k){k=String(k);if(/^[A-Z_]+$/.test(k))k=k.toLowerCase().replaceAll('_',' ');return k.replace(/([A-Z])/g,' $1').replace(/^./,x=>x.toUpperCase());}
+
+/* ---------- Sale Earn Mail Center ---------- */
+let mailTab='inbox',mailSelected=null;
+function mailStore(){
+  S.mailMessages=Array.isArray(S.mailMessages)?S.mailMessages:[];
+  return S.mailMessages;
+}
+function mailSeed(){
+  const a=mailStore();
+  if(a.length)return;
+  a.push({id:uid('mail'),type:'system',from:'Sale Earn',fromEmail:cfg().branding?.contactEmail||'',to:S.currentUser?.email||'',subject:'Welcome to Sale Earn Mail Center',body:'Your internal Sale Earn messages will appear here. Authentication OTP emails are delivered by Supabase Auth to the user’s email inbox.',date:nowISO(),read:false,starred:false});
+}
+window.mailOpen=function(id){mailSelected=id;const m=mailStore().find(x=>x.id===id);if(m){m.read=true;save();}render();};
+window.mailBack=function(){mailSelected=null;render();};
+window.mailTab=function(tab){mailTab=tab;mailSelected=null;render();};
+window.mailDelete=function(id){if(!adminOnly())return;S.mailMessages=mailStore().filter(x=>x.id!==id);mailSelected=null;save();render();};
+window.mailToggleStar=function(id){if(!adminOnly())return;const m=mailStore().find(x=>x.id===id);if(!m)return;m.starred=!m.starred;save();render();};
+window.mailCompose=function(){
+  if(!adminOnly())return;
+  const users=(S.users||[]).filter(u=>u.email).map(u=>`<option value="${esc(u.email)}">${esc(u.name||u.email)} — ${esc(u.email)}</option>`).join('');
+  document.getElementById('modalRoot').innerHTML=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal mail-compose-modal"><button class="btn iconbtn close" onclick="closeModal()">×</button><div class="mail-compose-head"><span class="mail-big-icon">✉</span><div><h2 style="margin:0">Compose message</h2><p class="muted" style="margin:4px 0 0">Send an internal message to a Sale Earn user.</p></div></div><div class="field"><label>Recipient</label><select id="mailTo"><option value="">Choose a user</option>${users}</select></div><div class="field"><label>Subject</label><input id="mailSubject" maxlength="160" placeholder="Message subject"></div><div class="field"><label>Message</label><textarea id="mailBody" maxlength="5000" placeholder="Write your message..."></textarea></div><div class="mail-compose-note">This Mail Center stores messages inside Sale Earn. Supabase Auth OTP emails continue to use the SMTP sender configured in Supabase.</div><div class="modal-footer"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="mailSend()">Send message</button></div></div></div>`;
+};
+window.mailSend=function(){
+  if(!adminOnly())return;
+  const to=String($('mailTo')?.value||'').trim(),subject=String($('mailSubject')?.value||'').trim(),body=String($('mailBody')?.value||'').trim();
+  if(!to||!subject||!body)return toast('Recipient, subject and message are required.');
+  const user=(S.users||[]).find(u=>String(u.email||'').toLowerCase()===to.toLowerCase());
+  const m={id:uid('mail'),type:'sent',from:S.currentUser?.name||'Administrator',fromEmail:S.currentUser?.email||'',to,subject,body,date:nowISO(),read:true,starred:false,userId:user?.id||null};
+  mailStore().unshift(m);if(mailStore().length>500)mailStore().length=500;save();closeModal();mailTab='sent';mailSelected=m.id;render();toast('Message saved in Sent.');
+};
+function mailPanel(){
+  mailSeed();
+  const all=mailStore().slice().sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const selected=mailSelected?all.find(x=>x.id===mailSelected):null;
+  const unread=all.filter(x=>!x.read&&x.type!=='sent').length;
+  const inbox=all.filter(x=>x.type!=='sent');
+  const sent=all.filter(x=>x.type==='sent');
+  const active=mailTab==='sent'?sent:inbox;
+  const rows=active.map(m=>`<button class="mail-row ${m.read?'':'unread'} ${selected?.id===m.id?'selected':''}" onclick="mailOpen('${esc(m.id)}')"><span class="mail-avatar">${esc(initials(m.type==='sent'?m.to:m.from))}</span><span class="mail-row-main"><strong>${esc(m.type==='sent'?'To: '+m.to:(m.from||'Sale Earn'))}</strong><span>${esc(m.subject||'(No subject)')}</span><small>${esc(String(m.body||'').replace(/\s+/g,' ').slice(0,95))}</small></span><span class="mail-row-side"><button class="mail-star ${m.starred?'on':''}" onclick="event.stopPropagation();mailToggleStar('${esc(m.id)}')" aria-label="Star">${m.starred?'★':'☆'}</button><small>${when(m.date)}</small></span></button>`).join('')||`<div class="mail-empty"><div class="mail-empty-icon">✉</div><h3>No messages</h3><p>${mailTab==='sent'?'Sent messages will appear here.':'Your inbox is clear.'}</p></div>`;
+  const detail=selected?`<div class="mail-detail"><div class="mail-detail-head"><button class="btn" onclick="mailBack()">← Back</button><div class="mail-detail-actions"><button class="btn" onclick="mailToggleStar('${esc(selected.id)}')">${selected.starred?'★ Starred':'☆ Star'}</button><button class="btn danger" onclick="mailDelete('${esc(selected.id)}')">Delete</button></div></div><div class="mail-detail-title"><div class="mail-avatar large">${esc(initials(selected.type==='sent'?selected.to:selected.from))}</div><div><h2>${esc(selected.subject||'(No subject)')}</h2><div class="muted small">${selected.type==='sent'?'To: '+esc(selected.to):'From: '+esc(selected.from||'Sale Earn')} · ${esc(new Date(selected.date).toLocaleString('en-IN'))}</div></div></div><div class="mail-detail-body">${esc(selected.body||'').replace(/\n/g,'<br>')}</div></div>`:`<div class="mail-list"><div class="mail-list-head"><div><b>${mailTab==='sent'?'Sent':'Inbox'}</b><span class="mail-count">${active.length}</span></div><button class="btn primary" onclick="mailCompose()">+ Compose</button></div>${rows}</div>`;
+  return adminLayout('mail','Mail Center',`${titleBlock('COMMUNICATION','Mail Center','A clean internal message center for Sale Earn users and admin communication.')}<div class="mail-shell"><aside class="mail-sidebar"><button class="mail-compose-btn" onclick="mailCompose()">✎ Compose</button><button class="mail-nav ${mailTab==='inbox'?'active':''}" onclick="mailTab('inbox')">✉ Inbox ${unread?`<span>${unread}</span>`:''}</button><button class="mail-nav ${mailTab==='sent'?'active':''}" onclick="mailTab('sent')">↗ Sent <span>${sent.length}</span></button><div class="mail-info-card"><strong>SMTP connected</strong><p>Auth OTP delivery is handled securely by Supabase SMTP.</p><small>${esc(cfg().branding?.emailSenderName||'Sale Earn')}</small></div></aside><section class="mail-main">${detail}</section></div>`);
+}
 window.studioMenu=function(){mobileOpen=!mobileOpen;document.body.classList.toggle('as-menu-open',mobileOpen);};
-const groups=[['WORKSPACE',[['','grid','Overview'],['control','sliders','Website controls'],['products','box','Products'],['users','users','Users & sellers'],['orders','orders','Orders']]],['BUSINESS',[['sales','chart','Sales & earnings'],['payouts','wallet','Withdrawals'],['commission','tag','Commissions'],['coupons','tag','Coupons'],['analytics','chart','Analytics'],['money','wallet','Money overview']]],['TRUST & GROWTH',[['reviews','star','Reviews'],['smartreviews','star','Review insights'],['warnings','bell','Warnings'],['risk','shield','Risk center'],['ranking','chart','Seller rankings'],['growth','bolt','Seller growth']]],['SYSTEM',[['audit','clock','Activity log'],['security','shield','Security'],['emergency','bolt','Emergency controls'],['deleted','trash','Recycle bin'],['system','sliders','System health']]]];
+const groups=[['WORKSPACE',[['','grid','Overview'],['control','sliders','Website controls'],['products','box','Products'],['users','users','Users & sellers'],['orders','orders','Orders']]],['BUSINESS',[['sales','chart','Sales & earnings'],['payouts','wallet','Withdrawals'],['commission','tag','Commissions'],['coupons','tag','Coupons'],['analytics','chart','Analytics'],['money','wallet','Money overview']]],['TRUST & GROWTH',[['reviews','star','Reviews'],['smartreviews','star','Review insights'],['warnings','bell','Warnings'],['risk','shield','Risk center'],['ranking','chart','Seller rankings'],['growth','bolt','Seller growth']]],['SYSTEM',[['mail','mail','Mail Center'],['audit','clock','Activity log'],['security','shield','Security'],['emergency','bolt','Emergency controls'],['deleted','trash','Recycle bin'],['system','sliders','System health']]]];
 window.adminSidebar=function(active){return `<aside class="admin-side"><a class="as-logo" href="#admin"><span class="logo-mark">SE</span><span>${esc(siteName())}<small>ADMIN STUDIO</small></span></a><nav class="as-nav" aria-label="Admin navigation">${groups.map(([g,items])=>`<div class="admin-nav-title">${g}</div>${items.map(([id,ic,label])=>`<button class="admin-link ${active===id?'active':''}" onclick="adminNav('${id}')" ${active===id?'aria-current="page"':''}>${icon(ic)}<span class="label">${label}</span>${id==='payouts'&&(S.payouts||[]).some(x=>x.status==='PENDING')?`<span class="as-count">${S.payouts.filter(x=>x.status==='PENDING').length}</span>`:''}</button>`).join('')}`).join('')}</nav><div class="as-side-footer"><button class="admin-link" onclick="go('home')">${icon('globe')}<span class="label">Visit marketplace</span>${icon('arrow')}</button><div class="as-account"><span class="as-avatar">${esc(initials(S.currentUser?.name))}</span><div style="flex:1"><strong>${esc(S.currentUser?.name||'Administrator')}</strong><small>Administrator · TEST</small></div><button class="btn" aria-label="Sign out" onclick="signout()">${icon('exit')}</button></div></div></aside>`;};
 window.adminTop=function(title){return `<div class="admin-top"><button class="btn as-menu" aria-label="Toggle admin navigation" onclick="studioMenu()">${icon('menu')}</button><div class="as-breadcrumb"><span>Workspace</span><span>/</span><b>${esc(title)}</b></div><div class="admin-search-wrap"><input id="adminGlobalSearch" class="admin-search" aria-label="Search users, products and orders" placeholder="Search anything…" oninput="adminSearchLive(this.value)" onkeydown="if(event.key==='Enter')adminSearch(this.value)" autocomplete="off"><div id="adminSearchResults" class="admin-search-results hidden"></div></div><div class="as-top-actions"><div class="as-sync" data-state="${syncState}" role="status"><i class="as-dot"></i><span>${esc(syncText)}</span></div><button class="btn" onclick="studioPublishNow()" title="Sync saved changes now" aria-label="Sync saved changes now">${icon('refresh')}</button><button class="btn" onclick="go('home')">${icon('globe')}<span class="as-preview-label">View website</span></button><span class="as-avatar">${esc(initials(S.currentUser?.name))}</span></div></div>`;};
 window.adminLayout=function(active,title,content){if(!adminOnly())return `${header()}<main class="page"></main>`;return `<div class="admin-shell">${adminSidebar(active)}<div class="as-mobile-shade" onclick="studioMenu()"></div><section class="admin-main">${adminTop(title)}<div class="admin-content">${content}</div></section></div>`;};
