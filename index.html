@@ -1216,6 +1216,11 @@ let SUPABASE_AUTH_BOOTSTRAP=false;
 supabaseClient.auth.onAuthStateChange((event,session)=>{
   if(event==='SIGNED_OUT'){
     S.currentUser=null;
+    ONLINE_READY=false;
+    ONLINE_LOCAL_DIRTY=false;
+    signalPending=false;
+    try{if(liveChannel){supabaseClient.removeChannel(liveChannel);liveChannel=null;}}catch(e){}
+    liveStarted=false;
     try{sePersist();}catch(e){}
     if(typeof render==='function') render();
     return;
@@ -1374,6 +1379,17 @@ async function restoreSupabaseSession(){
       if(u.isAdmin)u.role='admin';
       S.currentUser=u;
       if(!u.isAdmin)ensureStoreForUser();
+    }
+    // Anonymous visitors must never touch the cloud state table. The auth gate is
+    // intentionally checked before any full-state read, which prevents 401/RLS
+    // noise and avoids unnecessary Supabase requests before sign-in.
+    if(!authUser){
+      ONLINE_READY=false;
+      ONLINE_LOCAL_DIRTY=false;
+      ONLINE_LOADING=false;
+      render();
+      window.hideSaleEarnLoader?.();
+      return;
     }
     ONLINE_LOADING=true;
     const ok=await restoreOnlineState();
@@ -3680,14 +3696,28 @@ async function consumeSignal(){
  catch(e){console.warn('Live refresh deferred',e);} 
 }
 async function startLive(){
- if(liveStarted)return;liveStarted=true;
- try{const r=await supabaseClient.from('saleearn_admin_signal').select('revision').eq('id',1).maybeSingle();if(r.error)throw r.error;liveRevision=Number(r.data?.revision||0);
- liveChannel=supabaseClient.channel('saleearn-admin-revisions').on('postgres_changes',{event:'UPDATE',schema:'public',table:'saleearn_admin_signal',filter:'id=eq.1'},payload=>{const rev=Number(payload.new?.revision||0);if(rev<=liveRevision)return;liveRevision=rev;signalPending=true;clearTimeout(liveWake);liveWake=setTimeout(consumeSignal,120);}).subscribe(s=>{if(s==='SUBSCRIBED'&&!liveDirty)status('live','Live updates ready');if(['CHANNEL_ERROR','TIMED_OUT','CLOSED'].includes(s))status('error','Live offline · 30s fallback');});
- }catch(e){status('error','Live setup needed');console.warn('Live admin updates need SQL setup',e?.message||e);}
+ if(liveStarted||!SUPABASE_READY||!S.currentUser||!isAdmin())return;
+ liveStarted=true;
+ try{
+  const r=await supabaseClient.from('saleearn_admin_signal').select('revision').eq('id',1).maybeSingle();
+  if(r.error)throw r.error;
+  liveRevision=Number(r.data?.revision||0);
+  liveChannel=supabaseClient.channel('saleearn-admin-revisions').on('postgres_changes',{event:'UPDATE',schema:'public',table:'saleearn_admin_signal',filter:'id=eq.1'},payload=>{
+   const rev=Number(payload.new?.revision||0);if(rev<=liveRevision)return;liveRevision=rev;signalPending=true;clearTimeout(liveWake);liveWake=setTimeout(consumeSignal,120);
+  }).subscribe(s=>{
+   if(s==='SUBSCRIBED'&&!liveDirty)status('live','Live updates ready');
+   if(['CHANNEL_ERROR','TIMED_OUT','CLOSED'].includes(s))status('error','Live offline · 30s fallback');
+  });
+ }catch(e){
+  // The signal table is optional. Normal 15s polling remains the fallback, so a
+  // missing table must not break the admin panel or show a console error to users.
+  liveStarted=false;
+  status('live','Live fallback active');
+ }
 }
-const oldRestore=restoreSupabaseSession;window.restoreSupabaseSession=async function(){await oldRestore();await startLive();};
+const oldRestore=restoreSupabaseSession;window.restoreSupabaseSession=async function(){await oldRestore();if(S.currentUser&&isAdmin())await startLive();};
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='hidden')consumeSignal();});
-window.addEventListener('online',()=>{if(!liveChannel){liveStarted=false;startLive();}consumeSignal();});
+window.addEventListener('online',()=>{if(!liveChannel&&S.currentUser&&isAdmin()){liveStarted=false;startLive();}if(S.currentUser)consumeSignal();});
 document.addEventListener('input',e=>{if(e.target.matches('.admin-content input,.admin-content textarea')){dirtyFields=true;status('idle','Unsaved fields');}});
 document.addEventListener('change',e=>{if(e.target.matches('.admin-content select')&&!e.target.hasAttribute('onchange')){dirtyFields=true;status('idle','Unsaved fields');}});
 const oldAdminNav=adminNav;window.adminNav=function(r){if(dirtyFields&&!confirm('Leave this form without saving your edits?'))return;dirtyFields=false;mobileOpen=false;document.body.classList.remove('as-menu-open');return oldAdminNav(r);};
