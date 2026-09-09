@@ -1384,9 +1384,10 @@ async function restoreSupabaseSession(){
     // intentionally checked before any full-state read, which prevents 401/RLS
     // noise and avoids unnecessary Supabase requests before sign-in.
     if(!authUser){
-      ONLINE_READY=false;
-      ONLINE_LOCAL_DIRTY=false;
+      ONLINE_LOADING=true;
+      const ok=await restoreOnlineState();
       ONLINE_LOADING=false;
+      if(ok){subscribeOnlineState();startOnlinePolling();}
       render();
       window.hideSaleEarnLoader?.();
       return;
@@ -1603,13 +1604,13 @@ function seInstall(remote){
  sePersist();
 }
 function save(){
- sePersist();if(!ONLINE_READY||ONLINE_LOADING)return;
+ sePersist();if(!ONLINE_READY||ONLINE_LOADING||!S.currentUser)return;
  const current=onlineSnapshotKey(onlineSnapshot());
  if(current===seSyncKey){seCounters.skippedWrites++;if(!seWriteBusy){ONLINE_LOCAL_DIRTY=false;seDirtySince=0;clearTimeout(ONLINE_SYNC_TIMER);}return;}
  ONLINE_LOCAL_DIRTY=true;seMutation++;if(!seDirtySince)seDirtySince=Date.now();queueOnlineSync();queueNormalizedSync();
 }
 function queueOnlineSync(){
- if(!ONLINE_READY||!ONLINE_LOCAL_DIRTY||seStopped||!seOnline())return;
+ if(!S.currentUser||!ONLINE_READY||!ONLINE_LOCAL_DIRTY||seStopped||!seOnline())return;
  clearTimeout(ONLINE_SYNC_TIMER);
  const maxWait=Math.max(0,SE_SYNC_CONFIG.maxWaitMs-(Date.now()-(seDirtySince||Date.now())));
  const delay=Math.max(Math.min(SE_SYNC_CONFIG.debounceMs,maxWait),seRetryAt-Date.now(),0);
@@ -1626,7 +1627,7 @@ function seFailure(e){
 }
 function seSucceeded(){seFailures=0;seRetryAt=0;seStopped=false;}
 async function pushOnlineState(){
- if(!ONLINE_READY||ONLINE_LOADING||seWriteBusy||seReadBusy||!ONLINE_LOCAL_DIRTY||seStopped||!seOnline())return;
+ if(!S.currentUser||!ONLINE_READY||ONLINE_LOADING||seWriteBusy||seReadBusy||!ONLINE_LOCAL_DIRTY||seStopped||!seOnline())return;
  if(Date.now()<seRetryAt){queueOnlineSync();return;}
  if(onlineSnapshotKey(onlineSnapshot())===seSyncKey){ONLINE_LOCAL_DIRTY=false;seCounters.skippedWrites++;return;}
  seWriteBusy=true;clearTimeout(ONLINE_SYNC_TIMER);
@@ -1780,7 +1781,7 @@ function siteName(){return String(ensurePlatformConfig()?.branding?.websiteName|
 function header(){
  const path=route();
  const mobileSearch=`<div class="mobile-search"><span>⌕</span><input value="${esc(new URLSearchParams(location.search).get('q')||'')}" placeholder="Search products..." onkeydown="if(event.key==='Enter'){go('market');setTimeout(()=>{const q=this.value.trim();if(q){const m=document.querySelector('.market-tools .searchbox input');if(m){m.value=q;m.dispatchEvent(new Event('input',{bubbles:true}))}}},80)}"></div>`;
- return `<header class="topbar desktop-only"><div class="container nav"><a class="logo" href="#" onclick="go('home');return false"><span class="logo-mark">SE</span>${esc(siteName())}</a><div class="search"><span>⌕</span><input placeholder="Search products..." onkeydown="if(event.key==='Enter'){go('market')}" value="${esc(new URLSearchParams(location.search).get('q')||'')}"></div><div class="nav-actions"><button class="btn" onclick="go('market')">Marketplace</button><button class="btn" onclick="window.startSelling()">Start Selling</button><button class="btn cart-btn" onclick="go('cart')">Cart ${S.cart.length?`<span class="badge-dot cart-count">${S.cart.length}</span>`:""}</button><button class="btn" onclick="go('account')">My Account</button><select class="pill" onchange="setCurrency(this.value)"><option value="INR" ${S.currency==='INR'?'selected':''}>₹ INR</option><option value="USD" ${S.currency==='USD'?'selected':''}>$ USD</option></select>${!S.currentUser?`<button class="btn login-header-btn" onclick="openAuth('signin','login')">Login</button>`:""}${S.currentUser?.isAdmin?`<button class="btn" onclick="go('admin')">Admin</button>`:""}</div></div></header>
+ return `<header class="topbar desktop-only"><div class="container nav"><a class="logo" href="#" onclick="go('home');return false"><span class="logo-mark">SE</span>${esc(siteName())}</a><div class="search"><span>⌕</span><input placeholder="Search products..." onkeydown="if(event.key==='Enter'){go('market')}" value="${esc(new URLSearchParams(location.search).get('q')||'')}"></div><div class="nav-actions"><button class="btn" onclick="go('market')">Marketplace</button><button class="btn" onclick="window.startSelling()">Start Selling</button><button class="btn cart-btn" onclick="go('cart')">Cart ${S.cart.length?`<span class="badge-dot cart-count">${S.cart.length}</span>`:""}</button><button class="btn" onclick="go('account')">${S.currentUser?'My Account':'Sign In'}</button><select class="pill" onchange="setCurrency(this.value)"><option value="INR" ${S.currency==='INR'?'selected':''}>₹ INR</option><option value="USD" ${S.currency==='USD'?'selected':''}>$ USD</option></select>${S.currentUser?.isAdmin?`<button class="btn" onclick="go('admin')">Admin</button>`:""}</div></div></header>
  <header class="mobile-topbar mobile-only"><div class="mobile-topbar-inner"><a class="mobile-logo" href="#" onclick="go('home');return false"><span class="logo-mark">SE</span><span>${esc(siteName())}</span></a>${mobileSearch}<button class="mobile-account" onclick="go('account')">${S.currentUser?'◉':'♙'}</button></div></header>
  <nav class="mobile-bottom-nav mobile-only"><button class="${path==='home'?'active':''}" onclick="go('home')"><span class="micon">⌂</span>Home</button><button class="${path==='market'?'active':''}" onclick="go('market')"><span class="micon">⌕</span>Explore</button><button onclick="go('cart')"><span class="micon">🛒</span>Cart ${S.cart.length?`<span class="badge-dot">${S.cart.length}</span>`:''}</button><button onclick="window.startSelling()"><span class="micon">＋</span>Sell</button><button class="${path.startsWith('account')?'active':''}" onclick="go('account')"><span class="micon">♙</span>Account</button></nav>`
 }
@@ -1924,8 +1925,9 @@ function showCartNotice(p,already=false){
 }
 function removeCart(id){S.cart=S.cart.filter(x=>x!==id);save();render()}
 function buyNow(id){const p=product(id);if(!p)return;if(hasPurchased(id)){openPurchasedByProduct(id);return}if(!S.currentUser){openGuestBuyer(id);return}openBuy(id)}
-function openGuestBuyer(id){const p=product(id);if(!p)return;window.pendingGuestProduct=id;document.getElementById("modalRoot").innerHTML=`<div class="modal-bg"><div class="modal auth-box"><button class="btn iconbtn close" onclick="closeModal()">×</button><h2>Buy Product</h2><p class="muted">Sign in is not required. Enter your purchase name and User ID to continue.</p><div class="field"><label>Name</label><input id="guestBuyName" placeholder="Your name" autocomplete="name"></div><div class="field"><label>User ID</label><input id="guestBuyUserId" placeholder="Your User ID"></div><div class="hero-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="continueGuestBuy()">Continue to Buy</button></div></div></div>`}
-function continueGuestBuy(){const id=window.pendingGuestProduct,name=(document.getElementById("guestBuyName")?.value||"").trim(),userId=(document.getElementById("guestBuyUserId")?.value||"").trim();if(!name||!userId){alert("Please enter Name and User ID.");return}closeModal();window.pendingGuestProduct=null;window.pendingBuy={id,name,userId,email:"",guest:true};openBuy(id)}
+function openGuestBuyer(id){const p=product(id);if(!p)return;window.pendingGuestProduct=id;document.getElementById("modalRoot").innerHTML=`<div class="modal-bg"><div class="modal auth-box"><button class="btn iconbtn close" onclick="closeModal()">×</button><h2>Buy Product</h2><p class="muted">No account is required. Enter your name and Gmail/email to continue to checkout.</p><div class="field"><label>Name</label><input id="guestBuyName" placeholder="Your name" autocomplete="name"></div><div class="field"><label>Gmail / Email</label><input id="guestBuyEmail" type="email" placeholder="you@example.com" autocomplete="email"></div><div class="hero-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="continueGuestBuy()">Continue to Buy</button></div></div></div>`}
+function guestBuyerId(email){let h=0;for(let i=0;i<email.length;i++)h=((h<<5)-h)+email.charCodeAt(i)|0;return 'GUEST-'+Math.abs(h).toString(36).toUpperCase()}
+function continueGuestBuy(){const id=window.pendingGuestProduct,name=(document.getElementById("guestBuyName")?.value||"").trim(),email=(document.getElementById("guestBuyEmail")?.value||"").trim().toLowerCase();if(!name||!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){alert("Please enter your name and a valid email address.");return}closeModal();window.pendingGuestProduct=null;window.pendingBuy={id,name,userId:guestBuyerId(email),email,guest:true};openBuy(id)}
 function openPurchasedByProduct(id){const o=S.orders.find(x=>x.customerId===S.currentUser?.id&&x.productId===id&&x.status==="SUCCESS");if(o)openPurchasedAsset(o.id);else toast("Purchase not found")}
 function openBuy(id){
  const p=product(id); if(!p)return;
@@ -1933,11 +1935,11 @@ function openBuy(id){
  const name=guest?(window.pendingBuy?.name||""):(S.currentUser?.name||"");
  const userId=guest?(window.pendingBuy?.userId||""):(S.currentUser?.id||"");
  document.getElementById("modalRoot").innerHTML=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal"><button class="btn iconbtn close" onclick="closeModal()">×</button><h2>Buy ${esc(p.title)}</h2><p class="muted">${guest?"Guest checkout — sign in is not required.":"Your verified account is used for this purchase."}</p>
- <div class="form-grid"><div class="field"><label>Name</label><input id="buyName" value="${esc(name)}" readonly></div><div class="field"><label>User ID</label><input id="buyUserId" value="${esc(userId)}" readonly></div>${!guest?`<div class="field"><label>Email</label><input id="buyEmail" value="${esc(S.currentUser?.email||"")}" readonly></div>`:""}</div><div class="field"><label>Coupon Code (optional)</label><div style="display:flex;gap:8px"><input id="buyCoupon" placeholder="Enter coupon"><button class="btn" onclick="applyCheckoutCoupon()">Apply</button></div><div class="small muted">Admin coupons may reduce this product price. Referral discount remains separate.</div></div>
+ <div class="form-grid"><div class="field"><label>Name</label><input id="buyName" value="${esc(name)}" readonly></div><div class="field"><label>Email</label><input id="buyEmail" value="${esc(guest?(window.pendingBuy?.email||""):(S.currentUser?.email||""))}" readonly></div>${!guest?`<div class="field"><label>User ID</label><input id="buyUserId" value="${esc(userId)}" readonly></div>`:""}</div><div class="field"><label>Coupon Code (optional)</label><div style="display:flex;gap:8px"><input id="buyCoupon" placeholder="Enter coupon"><button class="btn" onclick="applyCheckoutCoupon()">Apply</button></div><div class="small muted">Admin coupons may reduce this product price. Referral discount remains separate.</div></div>
  <div class="modal-footer"><button class="btn" onclick="closeModal()">Back</button><button class="btn primary" onclick="continuePayment('${id}')">Continue to Payment →</button></div></div></div>`
 }
 function continuePayment(id){
- if(window.pendingBuy?.guest){const n=(window.pendingBuy.name||document.getElementById("buyName")?.value||"").trim(),uid=(window.pendingBuy.userId||document.getElementById("buyUserId")?.value||"").trim();if(!n||!uid){toast("Name and User ID are required");return}window.pendingBuy={...window.pendingBuy,id,name:n,userId:uid,email:"",guest:true};openPayment();return}
+ if(window.pendingBuy?.guest){const n=(window.pendingBuy.name||document.getElementById("buyName")?.value||"").trim(),e=(window.pendingBuy.email||document.getElementById("buyEmail")?.value||"").trim().toLowerCase();if(!n||!e){toast("Name and email are required");return}window.pendingBuy={...window.pendingBuy,id,name:n,email:e,userId:guestBuyerId(e),guest:true};openPayment();return}
  const n=S.currentUser?.name?.trim(),e=S.currentUser?.email?.trim();
  if(!n||!e){toast("Verified account details are required");return}
  window.pendingBuy={id,name:n,email:e,userId:S.currentUser.id};openPayment()
@@ -2210,7 +2212,7 @@ function authBody(mode){
 }
 function showAuthOtp(mode,email,name=""){
  window.pendingAuth={mode,email,name,expires:Date.now()+Number(ensurePlatformConfig().payment?.timeoutMinutes||10)*60*1000};
- document.getElementById("authBody").innerHTML=`<h2>Verify your email</h2><p class="muted">We sent a 6-digit verification code to <b>${esc(email)}</b>. The code expires in 10 minutes.</p><div class="field"><label>Verification Code</label><input id="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="Enter 6-digit code"></div><div class="modal-footer"><button class="btn" onclick="openAuth('${mode}')">Back</button><button class="btn primary" onclick="verifyAuthOtp()">Verify & Continue</button></div><p class="small muted" style="margin-top:10px">Didn't receive it? Check Spam/Promotions, then request a new code.</p>`;
+ document.getElementById("authBody").innerHTML=`<h2>Verify your email</h2><p class="muted">We sent a 6-digit verification code to <b>${esc(email)}</b>. The code expires in 10 minutes.</p><div class="field"><label>Verification Code</label><input id="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="Enter 6-digit code"></div><div class="modal-footer"><button class="btn" onclick="openAuth('${mode}')">Back</button><button class="btn" onclick="resendAuthOtp()">Resend OTP</button><button class="btn primary" onclick="verifyAuthOtp()">Verify & Continue</button></div><p class="small muted" style="margin-top:10px">Didn't receive it? Check Spam/Promotions, then use Resend OTP.</p>`;
  setTimeout(()=>document.getElementById("otp")?.focus(),50);
 }
 async function signup(){ if(!systemGuard('newSellerRegistration','New registrations are temporarily disabled by Admin'))return;
@@ -2232,6 +2234,15 @@ async function signin(){
    showAuthOtp("signin",email);
    toast("Verification code sent to your email");
  }catch(e){console.error(e);toast(e?.message||"Unable to send verification code")}
+}
+async function resendAuthOtp(){
+ const o=window.pendingAuth;if(!o?.email){toast("Enter your email again");return}
+ try{
+   const {error}=await supabaseClient.auth.signInWithOtp({email:o.email,options:{shouldCreateUser:o.mode==="signup",data:o.mode==="signup"?{name:o.name||""}:undefined}});
+   if(error) throw error;
+   o.expires=Date.now()+Number(ensurePlatformConfig().payment?.timeoutMinutes||10)*60*1000;
+   toast("New OTP sent to your email");
+ }catch(e){console.error(e);toast(e?.message||"Unable to resend OTP")}
 }
 async function verifyAuthOtp(){
  const o=window.pendingAuth,token=document.getElementById("otp")?.value.trim();
@@ -2933,9 +2944,7 @@ function applyPlatformConfig(){
  }
 }
 
-function guestGate(){
- return `${header()}<main class="page"><div class="container"><div class="auth-box" style="text-align:center;max-width:560px;margin:80px auto"><div class="logo-mark" style="margin:0 auto 16px">SE</div><h1>Sign in to continue</h1><p class="muted">Please sign in or create an account to access Sale Earn. Admin tools are available only to the authorized Admin account.</p><div class="hero-actions" style="justify-content:center;margin-top:18px"><button class="btn primary" onclick="openAuth('signin','login')">Sign In</button><button class="btn" onclick="openAuth('signup','login')">Create Account</button></div></div></div></main>${footer()}`;
-}
+function guestGate(){return null}
 function render(){
  const __saleEarnScrollY=window.scrollY||document.documentElement.scrollTop||0;
  const __dashSideScroll=document.querySelector('.dash-side')?.scrollTop||0;
@@ -2954,11 +2963,12 @@ function render(){
  try{productStateData(S.currentUser?.sellerId||currentSeller()?.id||"");}catch(e){}
  const r=route();
  const pcfg=ensurePlatformConfig();
- // Every application route requires a real Supabase Auth session.
- // The only public surface is the sign-in/sign-up gate.
- if(!S.currentUser){document.getElementById("app").innerHTML=guestGate();applyPlatformConfig();return;}
+ // Sale Earn is public-first: guests can explore home, marketplace, sellers,
+ // product pages and cart. Authentication is required only for account/seller
+ // tools, while checkout can collect name + email without forcing signup.
+ if((r==='account'||r.startsWith('account/'))&&!S.currentUser){document.getElementById("app").innerHTML=`${header()}<main class="page"><div class="container"><div class="auth-box" style="max-width:560px;margin:70px auto;text-align:center"><div class="logo-mark" style="margin:0 auto 16px">SE</div><h1>Sign in to use your account</h1><p class="muted">You can keep exploring Sale Earn without signing in. Sign in only when you want account features, orders or saved items.</p><div class="hero-actions" style="justify-content:center"><button class="btn primary" onclick="openAuth('signin','login')">Sign In</button><button class="btn" onclick="openAuth('signup','login')">Create Account</button></div></div></div></main>${footer()}`;applyPlatformConfig();return;}
+ if(r.startsWith('dashboard')&&!S.currentUser){openAuth('signin','seller');return;}
  if(pcfg.features?.maintenanceMode&&r!=="admin"&&!r.startsWith("admin")){document.getElementById("app").innerHTML=`${header()}<main class="page"><div class="container auth-box"><h2>Website Maintenance</h2><p class="muted">Sale Earn is temporarily under maintenance. Please try again later.</p></div></main>${footer()}`;applyPlatformConfig();return}
- if(r.startsWith("dashboard")&&!S.currentUser){go("home");setTimeout(()=>openAuth("signin","seller"),0);return}
  if(r.startsWith("admin")&&!isAdmin()){
   // Never render any admin route for a non-admin account.
   // Send signed-in users to the admin sign-in gate as well, instead of exposing the panel.
