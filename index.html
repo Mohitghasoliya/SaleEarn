@@ -36,7 +36,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer;border:0}a{text-
 @keyframes drift{from{transform:translateX(0)}to{transform:translateX(-42%)}}
 .pick-card{width:245px;background:#fff;border-radius:18px;overflow:hidden;flex:0 0 auto}.pick-card .thumb{height:150px}.pick-card .body{padding:12px}.pick-card h4{margin:0 0 6px;font-size:14px}.price{font-weight:900}.old{text-decoration:line-through;color:#a0a8b8;font-size:12px;margin-left:6px}.thumb{background:#e9ecf5;overflow:hidden;display:flex;align-items:center;justify-content:center}.thumb img{width:100%;height:100%;object-fit:cover;display:block}.thumb-fallback{font-size:35px}
 .section{padding:34px 0}.section-head{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:17px}.section-head h2{margin:0;font-size:23px}.section-head p{margin:4px 0 0;color:var(--muted);font-size:13px}
-.ad-strip{overflow:hidden;background:#111a30;color:#fff;padding:13px 0} .home-ad-strip{margin:12px 0 18px;border-radius:14px}.hero .home-ad-strip{max-width:100%}.ad-track{display:flex;gap:15px;width:max-content;animation:adscroll 28s linear infinite}.ad-track:hover{animation-play-state:paused}@keyframes adscroll{to{transform:translateX(-50%)}}
+.ad-strip{overflow:hidden;background:#111a30;color:#fff;padding:13px 0} .home-ad-strip{margin:8px auto 0;border-radius:14px;max-width:1180px}.hero .home-ad-strip{max-width:1180px}.ad-track{display:flex;gap:15px;width:max-content;animation:adscroll 28s linear infinite}.ad-track:hover{animation-play-state:paused}@keyframes adscroll{to{transform:translateX(-50%)}}
 .ad-card{width:310px;border:1px solid rgba(255,255,255,.12);background:#1c2740;border-radius:13px;padding:12px;display:flex;align-items:center;gap:12px}.ad-card .ad-thumb{width:52px;height:52px;border-radius:10px;background:#fff2;display:grid;place-items:center;overflow:hidden}.ad-card img{width:100%;height:100%;object-fit:cover}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:17px}.product-card{background:#fff;border:1px solid var(--line);border-radius:17px;overflow:hidden;transition:.2s;position:relative}.product-card:hover{transform:translateY(-5px) scale(1.01);border-color:#7d75ee;box-shadow:0 14px 30px rgba(62,53,174,.11)}.product-card .thumb{height:175px;position:relative}.product-card .body{padding:14px}.product-card h3{font-size:15px;line-height:1.35;margin:5px 0 7px}.seller-line{display:flex;align-items:center;gap:7px;margin-top:12px;color:var(--muted);font-size:11px;font-weight:800}.seller-avatar{width:27px;height:27px;border-radius:50%;overflow:hidden;background:#101a33;color:#fff;display:grid;place-items:center}.seller-avatar img{width:100%;height:100%;object-fit:cover}.plus{position:absolute;right:10px;bottom:10px;width:40px;height:40px;border-radius:50%;background:#fff;color:var(--brand);box-shadow:0 7px 18px rgba(0,0,0,.12);font-size:25px;transition:transform .2s ease,box-shadow .2s}.plus:hover{transform:rotate(45deg) scale(1.09);box-shadow:0 9px 20px rgba(81,70,229,.2)}
 .category-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:15px}.category-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;min-height:130px;transition:.2s}.category-card:hover{border-color:#8077ef;transform:translateY(-3px)}.category-card .cat-icon{font-size:28px}.category-card h3{margin:12px 0 5px}.category-card p{margin:0;color:var(--muted);font-size:12px}
@@ -567,6 +567,13 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;op
 .account-danger{margin-top:18px;border:1px solid #f1c9cf;background:rgba(239,91,104,.06);border-radius:18px;padding:18px}
 @media(max-width:700px){.admin-top{flex-wrap:wrap;padding:12px 14px}.admin-top>div:first-child{width:100%}.admin-search-wrap{order:3;width:100%;max-width:none;min-width:0}.admin-top>div:last-child{position:absolute;right:14px;top:12px}.admin-top .admin-back-btn{display:none}.admin-content{padding:16px}.cart-notice{right:12px;top:76px}}
 
+/* ADMIN LIGHTING - clearer depth and softer studio glow */
+.admin-top{box-shadow:0 10px 30px rgba(78,66,160,.10),0 1px 0 rgba(255,255,255,.05)!important}
+.admin-card,.admin-kpi,.admin-detail-box{box-shadow:0 14px 34px rgba(35,45,75,.10),inset 0 1px 0 rgba(255,255,255,.55)!important}
+.admin-card:hover,.admin-kpi:hover,.admin-detail-box:hover{box-shadow:0 20px 44px rgba(65,54,145,.14),inset 0 1px 0 rgba(255,255,255,.72)!important}
+.admin-table thead th{background:rgba(10,16,30,.96)!important}
+.admin-table tbody tr.data-row{background:transparent!important}
+.admin-table tbody tr.data-row:hover{background:rgba(111,96,235,.06)!important}
 /* FINAL OVERRIDES - premium texture + balanced admin light/dark */
 body{background-color:var(--bg);background-image:radial-gradient(circle at 8% 8%,rgba(99,88,239,.10),transparent 24%),radial-gradient(circle at 92% 12%,rgba(19,154,143,.07),transparent 22%),repeating-radial-gradient(circle at 50% 50%,rgba(80,90,120,.035) 0 1px,transparent 1px 7px),linear-gradient(135deg,#fbfcff,#f4f6fb 52%,#fafbff)}
 :root[data-theme="dark"] body{background-image:radial-gradient(circle at 8% 8%,rgba(108,94,246,.17),transparent 25%),radial-gradient(circle at 92% 12%,rgba(20,183,171,.08),transparent 23%),repeating-radial-gradient(circle at 50% 50%,rgba(220,230,255,.025) 0 1px,transparent 1px 8px),linear-gradient(135deg,#070b16,#0b1221 52%,#080d18)}
@@ -1683,7 +1690,7 @@ async function restoreOnlineState(){
   seSyncKey=onlineSnapshotKey(seBase||{});ONLINE_READY=true;
   ONLINE_LOCAL_DIRTY=!row||onlineSnapshotKey(onlineSnapshot())!==seSyncKey;
   if(ONLINE_LOCAL_DIRTY){seDirtySince=Date.now();setTimeout(queueOnlineSync,0);}
-  seSucceeded();return true;
+  seSucceeded();startInstantOnlineSync();return true;
  }catch(e){seFailure(e);return false;}
  finally{seReadBusy=false;}
 }
@@ -1715,6 +1722,29 @@ function startOnlinePolling(){
  const tick=async()=>{await pollOnlineState();ONLINE_POLL_TIMER=setTimeout(tick,SE_SYNC_CONFIG.pollMs+Math.floor(Math.random()*3000));};
  ONLINE_POLL_TIMER=setTimeout(tick,SE_SYNC_CONFIG.pollMs+Math.floor(Math.random()*3000));
 }
+let SE_INSTANT_CHANNEL=null,SE_INSTANT_STARTED=false;
+async function startInstantOnlineSync(){
+ if(SE_INSTANT_STARTED||!SUPABASE_READY)return;
+ SE_INSTANT_STARTED=true;
+ try{
+  SE_INSTANT_CHANNEL=supabaseClient.channel('saleearn-instant-sync',{config:{broadcast:{self:false}}});
+  SE_INSTANT_CHANNEL.on('broadcast',{event:'admin-state-updated'},()=>{
+   if(!ONLINE_READY||ONLINE_LOCAL_DIRTY)return;
+   clearTimeout(window.__seInstantRefreshTimer);
+   window.__seInstantRefreshTimer=setTimeout(async()=>{
+    try{await pollOnlineState(true);if(!ONLINE_LOCAL_DIRTY&&!route().startsWith('admin'))render();}
+    catch(e){console.warn('Instant live refresh deferred',e)}
+   },80);
+  });
+  await SE_INSTANT_CHANNEL.subscribe();
+ }catch(e){SE_INSTANT_STARTED=false;SE_INSTANT_CHANNEL=null;console.warn('Instant sync channel unavailable',e?.message||e)}
+}
+async function broadcastInstantOnlineUpdate(){
+ if(!SE_INSTANT_CHANNEL){await startInstantOnlineSync()}
+ if(!SE_INSTANT_CHANNEL)return;
+ try{await SE_INSTANT_CHANNEL.send({type:'broadcast',event:'admin-state-updated',payload:{at:Date.now()}})}catch(e){console.warn('Instant sync broadcast failed',e?.message||e)}
+}
+
 function applyRemoteOnlineState(remote){
  if(!ONLINE_READY||ONLINE_LOADING||ONLINE_LOCAL_DIRTY||!remote||typeof remote!=='object')return;
  const key=onlineSnapshotKey(remote);if(key===ONLINE_LAST_REMOTE)return;
@@ -1874,7 +1904,7 @@ function home(){
  <main class="page">
  ${homepageAds.length?`<section class="ad-premium"><div class="container"><div class="small" style="color:#bfc8dd;font-weight:900;margin-bottom:8px">ADVERTISEMENT · PREMIUM PRODUCTS</div></div><div class="ad-premium-track">${[...homepageAds,...homepageAds].map(a=>{const p=product(a.productId);return p?`<div class="ad-premium-card" onclick="go('product/${p.id}')"><div class="ad-thumb">${p.image?`<img src="${esc(p.image)}">`:`<span>🧩</span>`}</div><div class="ad-info"><div class="small" style="color:#aeb8cc">Seller ID: <span style="color:#fff;cursor:pointer" onclick="event.stopPropagation();go('seller/${p.sellerId}')">@${esc(p.sellerId)}</span></div><b>${esc(p.title)}</b><div class="ad-price">${money(p.price)}</div></div><button class="ad-boost" onclick="event.stopPropagation();startAdFromHome('${p.id}')">Ad / Boost</button></div>`:""}).join("")}</div></section>`:""}
  <section id="home-hero" class="hero"><div class="container hero-grid">
-  <div><div class="eyebrow">THE CREATOR MARKETPLACE</div>${homeAdStrip}<h1>${esc(ensurePlatformConfig().cms.heroTitle||"Turn your digital skills into products people want.")}</h1><p>${esc(ensurePlatformConfig().cms.heroSubtitle||"Discover ready-to-use creator assets, courses, reels bundles and software — or launch your own store with Sale Earn.")}</p>
+  <div><div class="eyebrow">THE CREATOR MARKETPLACE</div><h1>${esc(ensurePlatformConfig().cms.heroTitle||"Turn your digital skills into products people want.")}</h1><p>${esc(ensurePlatformConfig().cms.heroSubtitle||"Discover ready-to-use creator assets, courses, reels bundles and software — or launch your own store with Sale Earn.")}</p>
   <div class="hero-actions"><button class="btn primary" onclick="go('market')">Explore Marketplace →</button><button class="btn" onclick="window.startSelling()">Start Selling</button></div></div>
   <div class="hero-art"><div class="small" style="color:#aeb8cc;margin:2px 4px 15px;font-weight:800">THE ULTIMATE DIGITAL ECONOMY · PREMIUM PICKS</div><div class="hero-track">${repeated.map(p=>`<div class="pick-card" onclick="go('product/${p.id}')">${thumb(p)}<div class="body"><h4>${esc(p.title)}</h4><span class="price">${money(p.price)}</span></div></div>`).join("")}</div></div>
  </div></section>
@@ -2387,7 +2417,7 @@ function adminPage(){
  const latestUsers=`<div class="admin-card"><div class="section-head"><div><h2>Latest Users</h2><div class="sub">Click a user to inspect account, store, orders and activity.</div></div><button class="btn" onclick="adminNav('users')">View All</button></div><table class="admin-table"><thead><tr><th>User ID</th><th>Email</th><th>Orders</th><th>Status</th></tr></thead><tbody>${latest.map(x=>{const oo=o.filter(y=>y.customerId===x.id);const restricted=x.unpublicUntil&&x.unpublicUntil>Date.now();return `<tr class="data-row" onclick="adminNav('user/${x.id}')"><td><b>${esc(x.id)}</b><div class="small muted">${esc(x.name)}</div></td><td>${esc(x.email)}</td><td>${oo.length}</td><td><span class="admin-pill ${restricted?'danger':'success'}">${restricted?'Restricted':'Active'}</span></td></tr>`}).join('')||`<tr><td colspan="4"><div class="admin-empty">No users yet.</div></td></tr>`}</tbody></table></div>`;
  return adminLayout('','Dashboard',`<div class="admin-kpis"><div class="admin-kpi" onclick="adminNav('users')"><div class="kpi-icon">♙</div><span>Total Users</span><b>${u.length}</b></div><div class="admin-kpi" onclick="adminNav('products')"><div class="kpi-icon">◈</div><span>Total Products</span><b>${p.length}</b></div><div class="admin-kpi" onclick="adminNav('orders')"><div class="kpi-icon">▤</div><span>Total Orders</span><b>${o.length}</b></div><div class="admin-kpi" onclick="adminNav('sales')"><div class="kpi-icon">₹</div><span>Total Sales</span><b>${money(st.sales)}</b></div></div><div class="admin-kpis" style="margin-top:15px"><div class="admin-kpi" onclick="adminNav('sales')"><span>Seller Earnings</span><b>${money(st.earnings)}</b><small class="muted">Net after platform fee</small></div><div class="admin-kpi" onclick="adminNav('orders')"><span>Successful Orders</span><b>${st.orders.length}</b></div><div class="admin-kpi" onclick="adminNav('reviews')"><span>Total Reviews</span><b>${st.reviews.length}</b></div><div class="admin-kpi" onclick="adminNav('commission')"><span>Total Web Commission</span><b>${money(webCommissionStats().net)}</b><small class="muted">Platform earnings</small></div></div><div class="admin-grid2">${recentOrders}${latestUsers}</div><div class="admin-grid2"><div class="admin-card"><h2>Orders Overview</h2><div class="sub">Current order status distribution.</div>${['SUCCESS','PENDING','CANCELLED','FAILED'].map(k=>{const n=o.filter(x=>x.status===k).length;return `<div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #edf0f5"><span>${k}</span><b>${n}</b></div>`}).join('')}</div><div class="admin-card"><h2>Today's Sales & Earnings</h2><div class="sub">Successful transactions recorded today.</div>${(()=>{const d=new Date().toDateString(),td=st.orders.filter(x=>new Date(x.date).toDateString()===d);const sale=td.reduce((a,x)=>a+Number(x.amount||0),0),earn=td.reduce((a,x)=>a+(x.netSellerAmount!=null?Number(x.netSellerAmount):Number(x.amount||0)*(1-Number(x.platformFeeRate??.20))),0);return `<div class="admin-stat-row"><div class="admin-stat"><b>${td.length}</b><span class="small muted">Orders</span></div><div class="admin-stat"><b>${money(sale)}</b><span class="small muted">Sales</span></div><div class="admin-stat"><b>${money(earn)}</b><span class="small muted">Net earnings</span></div></div>`})()}</div></div>`);
 }
-function adminUsers(){const rows=S.users;return adminLayout('users','Users',`<div class="admin-card"><div class="section-head"><div><h2>All Users</h2><div class="sub">Every account can buy and sell. Admin controls are separate.</div></div></div><table class="admin-table"><thead><tr><th>User</th><th>Email</th><th>Store</th><th>Orders</th><th>Sales</th><th>Status</th><th>Action</th></tr></thead><tbody>${rows.map(u=>{const oo=S.orders.filter(x=>x.customerId===u.id),sid=u.sellerId,ss=sid?seller(sid):null,restricted=u.unpublicUntil&&u.unpublicUntil>Date.now();return `<tr class="data-row" onclick="adminNav('user/${u.id}')"><td><b>${esc(u.id)}</b><div>${esc(u.name)}</div></td><td>${esc(u.email)}</td><td>${ss?esc(ss.name):'-'}</td><td>${oo.length}</td><td>${sid?money(adminStats().orders.filter(x=>x.sellerId===sid).reduce((a,x)=>a+Number(x.amount||0),0)):'₹0.00'}</td><td><span class="admin-pill ${restricted?'danger':'success'}">${restricted?'Restricted':'Active'}</span></td><td onclick="event.stopPropagation()"><button class="btn ${restricted?'primary':''}" onclick="${restricted?`adminRelease('${u.id}')`:`adminRestrict('${u.id}')`}">${restricted?'Release':'Restrict 3 Days'}</button></td></tr>`}).join('')||`<tr><td colspan="7"><div class="admin-empty">No users found.</div></td></tr>`}</tbody></table></div>`)}
+function adminUsers(){const rows=(S.users||[]).filter(u=>u&&!u.isAdmin&&String(u.id||'').trim()&&String(u.email||'').trim());return adminLayout('users','Users',`<div class="admin-card"><div class="section-head"><div><h2>All Users</h2><div class="sub">Every account can buy and sell. Admin controls are separate.</div></div></div><table class="admin-table"><thead><tr><th>User</th><th>Email</th><th>Store</th><th>Orders</th><th>Sales</th><th>Status</th><th>Action</th></tr></thead><tbody>${rows.map(u=>{const oo=S.orders.filter(x=>x.customerId===u.id),sid=u.sellerId,ss=sid?seller(sid):null,restricted=u.unpublicUntil&&u.unpublicUntil>Date.now();return `<tr class="data-row" onclick="adminNav('user/${u.id}')"><td><b>${esc(u.id)}</b><div>${esc(u.name)}</div></td><td>${esc(u.email)}</td><td>${ss?esc(ss.name):'-'}</td><td>${oo.length}</td><td>${sid?money(adminStats().orders.filter(x=>x.sellerId===sid).reduce((a,x)=>a+Number(x.amount||0),0)):'₹0.00'}</td><td><span class="admin-pill ${restricted?'danger':'success'}">${restricted?'Restricted':'Active'}</span></td><td onclick="event.stopPropagation()"><button class="btn ${restricted?'primary':''}" onclick="${restricted?`adminRelease('${u.id}')`:`adminRestrict('${u.id}')`}">${restricted?'Release':'Restrict 3 Days'}</button></td></tr>`}).join('')||`<tr><td colspan="7"><div class="admin-empty">No users found.</div></td></tr>`}</tbody></table></div>`)}
 function adminUserDetail(id){const u=S.users.find(x=>x.id===id);if(!u)return adminLayout('users','User Not Found',`<button class="btn" onclick="adminNav('users')">← Users</button>`);const ss=u.sellerId?seller(u.sellerId):null,orders=S.orders.filter(x=>x.customerId===u.id),products=ss?S.products.filter(p=>p.sellerId===ss.id):[],restricted=u.unpublicUntil&&u.unpublicUntil>Date.now();return adminLayout('users','User Details',`<button class="btn admin-back" onclick="adminNav('users')">← Back to Users</button><div class="admin-detail"><div class="admin-detail-box"><h2>${esc(u.name)}</h2><p class="muted">User ID: <b>${esc(u.id)}</b></p><p>Email: ${esc(u.email)}</p><p>Role: Buyer + Seller</p><p>Status: <span class="admin-pill ${restricted?'danger':'success'}">${restricted?'Restricted until '+new Date(u.unpublicUntil).toLocaleString('en-IN'):'Active'}</span></p><div class="security-row" style="margin-top:12px"><div><b>User Score</b><div class="small muted">Admin can manually adjust 0–100.</div></div><div style="display:flex;gap:8px;align-items:center"><input id="adminScore_${esc(u.id)}" type="number" min="0" max="100" value="${Number.isFinite(Number(u.score))?Number(u.score):80}" style="width:90px"><button class="btn" onclick="if(saleEarnEditUserScore('${esc(u.id)}',document.getElementById('adminScore_${esc(u.id)}').value,'Admin score update')){save();toast('User score updated');render()}">Save Score</button></div></div><div class="admin-actions"><button class="btn" onclick="${restricted?`adminRelease('${u.id}')`:`adminRestrict('${u.id}')`}">${restricted?'Release':'Restrict 3 Days'}</button>${ss?`<button class="btn primary" onclick="go('seller/${ss.id}')">Open Store</button>`:''}</div></div><div class="admin-detail-box"><h2>Account Overview</h2><div class="admin-stat-row"><div class="admin-stat"><b>${orders.length}</b><span class="small muted">Orders</span></div><div class="admin-stat"><b>${products.length}</b><span class="small muted">Live Products</span></div><div class="admin-stat"><b>${money(orders.filter(x=>x.status==='SUCCESS').reduce((a,x)=>a+Number(x.amount||0),0))}</b><span class="small muted">Spent</span></div></div></div></div><div class="admin-card"><h2>Products & Sales</h2>${products.map(p=>`<div class="security-row"><div><b>${esc(p.title)}</b><div class="small muted">${esc(p.id)} · Sales ${productSales(p.id)}</div></div><button class="btn" onclick="adminNav('product/${p.id}')">Open Product</button></div>`).join('')||'<div class="admin-empty">No live products.</div>'}</div><div class="admin-card"><h2>Customer Orders</h2>${orders.map(x=>`<div class="security-row" onclick="adminNav('order/${x.id}')" style="cursor:pointer"><div><b>${esc(product(x.productId)?.title||'Deleted product')}</b><div class="small muted">${esc(x.id)} · ${new Date(x.date).toLocaleString('en-IN')}</div></div><span class="admin-pill ${x.status==='SUCCESS'?'success':x.status==='CANCELLED'?'danger':'warn'}">${esc(x.status)} · ${money(x.amount)}</span></div>`).join('')||'<div class="admin-empty">No orders.</div>'}</div>`)}
 function adminProducts(){const ps=S.products;return adminLayout('products','Products',`<div class="admin-card"><div class="section-head"><div><h2>Product Management</h2><div class="sub">Open any product to inspect seller, sales, files and secure delivery URL.</div></div></div><table class="admin-table"><thead><tr><th>Product</th><th>Seller</th><th>Sales</th><th>Price</th><th>Action</th></tr></thead><tbody>${ps.map(p=>`<tr class="data-row" onclick="adminNav('product/${p.id}')"><td><b>${esc(p.title)}</b><div class="small muted">${esc(p.id)}</div></td><td>@${esc(p.sellerId)}</td><td>${productSales(p.id)}</td><td>${money(p.price)}</td><td onclick="event.stopPropagation()"><button class="btn danger" onclick="adminDeleteProduct('${p.id}')">Delete</button></td></tr>`).join('')||`<tr><td colspan="5"><div class="admin-empty">No products.</div></td></tr>`}</tbody></table></div>`)}
 function adminProductDetail(id){const p=product(id);if(!p)return adminLayout('products','Product Not Found',`<button class="btn" onclick="adminNav('products')">← Products</button>`);const s=seller(p.sellerId),sales=S.orders.filter(x=>x.productId===p.id&&x.status==='SUCCESS');return adminLayout('products','Product Details',`<button class="btn admin-back" onclick="adminNav('products')">← Back to Products</button><div class="admin-product-preview admin-detail-box"><div>${p.image?`<img src="${esc(p.image)}" alt="">`:`<div class="thumb-fallback">🧩</div>`}</div><div><h2>${esc(p.title)}</h2><p class="muted">Product ID: <b>${esc(p.id)}</b></p><p>Seller: <b>@${esc(s.id)}</b> · ${esc(s.name)}</p><p>Category: ${esc(p.category||'-')}</p><p>Price: <b>${money(p.price)}</b> · Sales: <b>${productSales(p.id)}</b></p><p>${esc(p.description||'')}</p><div class="admin-actions"><button class="btn primary" onclick="go('seller/${s.id}')">Open Seller</button><button class="btn danger" onclick="adminDeleteProduct('${p.id}')">Delete Product</button></div></div></div><div class="admin-grid2"><div class="admin-detail-box"><h2>Files & Secure Delivery</h2><p>File count: ${esc(p.fileCount||((p.links||[]).length||1))}</p><p>File size: ${esc(p.fileSize||'Not specified')}</p>${(p.links||[]).map((l,i)=>`<div class="security-row"><span>Secure Link ${i+1}</span><button class="btn" onclick="window.open('${esc(l)}','_blank','noopener')">Open Secure Link</button></div>`).join('')||'<div class="admin-empty">No secure link stored.</div>'}</div><div class="admin-detail-box"><h2>Sales</h2>${sales.map(x=>`<div class="security-row"><div><b>${esc(x.customerId||x.customerEmail||'Customer')}</b><div class="small muted">${esc(x.id)} · ${new Date(x.date).toLocaleString('en-IN')}</div></div><span>${money(x.amount)}</span></div>`).join('')||'<div class="admin-empty">No successful sales.</div>'}</div></div>`)}
@@ -3686,18 +3716,19 @@ const originalPublish=publishProduct;window.publishProduct=function(id){const c=
 // Keep test transfer implementation, but fix the legacy wrapper's wrong input ID.
 // Captured directly from the original function before the configuration-layer wrapper.
 if(window.studioOriginalPayout)window.requestPayout=function(){if(!systemGuard('withdrawals'))return;const amount=Number($('poAmt')?.value),p=cfg().payout,r=cfg().rules;const min=Math.max(Number(p.min||0),Number(r.minWithdrawal||0)),max=Math.min(Number(p.max||1e15),Number(r.maxWithdrawal||1e15));if(!Number.isFinite(amount)||amount<min||amount>max)return toast('Withdrawal must be between '+money(min)+' and '+money(max));S.adminControls=S.adminControls||{};S.adminControls.payoutMin=min;S.adminControls.payoutMax=max;return window.studioOriginalPayout();};
-// Sync status is truthful: local application -> cloud save -> live signal acknowledgment.
+// Admin changes: persist immediately, then broadcast a tiny live signal.
+// No separate signal table/RPC is required; visitors fetch the newest shared state only once.
 const lowSave=save,lowPush=pushOnlineState;
-window.save=function(){const before=onlineSnapshotKey(onlineSnapshot());lowSave();if(isAdmin()&&route().startsWith('admin')&&ONLINE_LOCAL_DIRTY){dirtyFields=false;liveDirty=true;status('saving','Saving changes…');clearTimeout(ONLINE_SYNC_TIMER);clearTimeout(flushTimer);flushTimer=setTimeout(()=>pushOnlineState(),0);}return before;};
-window.pushOnlineState=async function(){await lowPush();if(liveDirty&&isAdmin()){
- if(ONLINE_LOCAL_DIRTY){status(seStopped?'error':'saving',seStopped?'Save paused — retry':'Saving changes…');return;}
- if(seWriteBusy)return;
- if(publishing)return;publishing=true;
- try{const r=await supabaseClient.rpc('se_publish_admin_signal');if(r.error)throw r.error;liveRevision=Number(r.data||liveRevision);liveDirty=false;lastSignalTime=Date.now();status('live','Saved & broadcast');}
- catch(e){liveDirty=false;status('error','Saved · live setup needed');console.warn('Admin live update unavailable',e?.message||e);}
- finally{publishing=false;}
- }};
-window.studioPublishNow=async function(){if(!adminOnly())return;if(dirtyFields)return toast('Save the edited form first; its values are not published yet.');seStopped=false;seFailures=0;seRetryAt=0;if(!ONLINE_READY){await restoreSupabaseSession();if(!ONLINE_READY){status('error','Cloud unavailable');return;}}liveDirty=true;if(ONLINE_LOCAL_DIRTY)await pushOnlineState();else{try{const r=await supabaseClient.rpc('se_publish_admin_signal');if(r.error)throw r.error;liveDirty=false;status('live','Saved & broadcast');}catch{liveDirty=false;status('error','Live setup needed');}}};
+window.save=function(){const before=onlineSnapshotKey(onlineSnapshot());lowSave();if(isAdmin()&&route().startsWith('admin')&&ONLINE_LOCAL_DIRTY){dirtyFields=false;liveDirty=true;status('saving','Saving changes…');clearTimeout(ONLINE_SYNC_TIMER);clearTimeout(flushTimer);window.__seAdminImmediateSave=window.pushOnlineState();}return before;};
+window.pushOnlineState=async function(){
+ await lowPush();
+ if(isAdmin()&&liveDirty){
+  if(ONLINE_LOCAL_DIRTY){status(seStopped?'error':'saving',seStopped?'Save paused — retry':'Saving changes…');return;}
+  liveDirty=false;lastSignalTime=Date.now();status('live','Saved & live');
+  await broadcastInstantOnlineUpdate();
+ }
+};
+window.studioPublishNow=async function(){if(!adminOnly())return;if(dirtyFields)return toast('Save the edited form first; its values are not published yet.');seStopped=false;seFailures=0;seRetryAt=0;if(!ONLINE_READY){await restoreSupabaseSession();if(!ONLINE_READY){status('error','Cloud unavailable');return;}}liveDirty=true;if(ONLINE_LOCAL_DIRTY)await pushOnlineState();else{liveDirty=false;lastSignalTime=Date.now();status('live','Saved & live');await broadcastInstantOnlineUpdate();}};
 async function consumeSignal(){
  if(!signalPending||document.visibilityState==='hidden'||!ONLINE_READY||navigator.onLine===false)return;
  if(ONLINE_LOADING||seReadBusy||seWriteBusy){clearTimeout(liveWake);liveWake=setTimeout(consumeSignal,500);return;}
@@ -3706,24 +3737,9 @@ async function consumeSignal(){
  catch(e){console.warn('Live refresh deferred',e);} 
 }
 async function startLive(){
- if(liveStarted||!SUPABASE_READY||!S.currentUser||!isAdmin())return;
- liveStarted=true;
- try{
-  const r=await supabaseClient.from('saleearn_admin_signal').select('revision').eq('id',1).maybeSingle();
-  if(r.error)throw r.error;
-  liveRevision=Number(r.data?.revision||0);
-  liveChannel=supabaseClient.channel('saleearn-admin-revisions').on('postgres_changes',{event:'UPDATE',schema:'public',table:'saleearn_admin_signal',filter:'id=eq.1'},payload=>{
-   const rev=Number(payload.new?.revision||0);if(rev<=liveRevision)return;liveRevision=rev;signalPending=true;clearTimeout(liveWake);liveWake=setTimeout(consumeSignal,120);
-  }).subscribe(s=>{
-   if(s==='SUBSCRIBED'&&!liveDirty)status('live','Live updates ready');
-   if(['CHANNEL_ERROR','TIMED_OUT','CLOSED'].includes(s))status('error','Live offline · 30s fallback');
-  });
- }catch(e){
-  // The signal table is optional. Normal 15s polling remains the fallback, so a
-  // missing table must not break the admin panel or show a console error to users.
-  liveStarted=false;
-  status('live','Live fallback active');
- }
+ if(!SUPABASE_READY||!S.currentUser||!isAdmin())return;
+ await startInstantOnlineSync();
+ if(!liveDirty)status('live','Live updates ready');
 }
 const oldRestore=restoreSupabaseSession;window.restoreSupabaseSession=async function(){await oldRestore();if(S.currentUser&&isAdmin())await startLive();};
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='hidden')consumeSignal();});
