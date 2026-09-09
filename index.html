@@ -4181,5 +4181,110 @@ html,body{max-width:100%;overflow-x:hidden}img,video,iframe{max-width:100%;heigh
 })();
 
 </script>
+
+<style id="saleearn-plan-save-fix">
+.se-plan-save-status{display:inline-flex;margin-left:10px;padding:7px 10px;border-radius:9px;background:var(--soft,#f1efff);color:var(--muted,#667085);font-size:11px;font-weight:850;vertical-align:middle}.se-plan-save-status[data-state="saving"]{background:#eef1f6;color:#596579}.se-plan-save-status[data-state="live"]{background:#e8f8f0;color:#087a55}.se-plan-save-status[data-state="pending"]{background:#fff3d6;color:#8a5d00}.se-plan-save-status[data-state="error"]{background:#ffebe9;color:#b42318}@media(max-width:600px){.se-plan-save-status{display:flex;margin:9px 0 0}}
+
+</style>
+<script id="saleearn-plan-save-fix-script">
+/* Sale Earn Subscription Plan Save — robust fixed-slot persistence */
+(function(){
+ const IDS=['FREE','CE','ENTERPRISE'],wait=ms=>new Promise(r=>setTimeout(r,ms)),clone=x=>JSON.parse(JSON.stringify(x));let saving=new Set();
+ const byId=id=>document.getElementById(id),text=(id,fallback='')=>String(byId(id)?.value??fallback).trim(),num=(id,fallback=0,min=0,max=1e9)=>{const raw=byId(id)?.value;if(raw==null||raw==='')return Number(fallback)||0;const n=Number(raw);if(!Number.isFinite(n)||n<min||n>max)throw Error('Enter a valid value for '+id.replace(/^pl_[^_]+_/,'').replaceAll('_',' '));return n},bool=(id,fallback=false)=>byId(id)?!!byId(id).checked:!!fallback;
+ function status(id,state,message){let box=document.querySelector(`[data-plan-save-status="${id}"]`);const btn=document.querySelector(`button[onclick*="adminPlanSave('${id}')"]`);if(!box&&btn){box=document.createElement('span');box.dataset.planSaveStatus=id;box.className='se-plan-save-status';btn.insertAdjacentElement('afterend',box)}if(box){box.dataset.state=state;box.textContent=message}try{if(state==='live')toast('Plan saved & live');else if(state==='pending')toast('Plan saved locally. Online sync pending.');else if(state==='error')toast(message)}catch{}}
+ async function flush(){if(typeof ONLINE_READY==='undefined'||!ONLINE_READY||!S.currentUser)return false;if(typeof navigator!=='undefined'&&navigator.onLine===false)return false;if(typeof seStopped!=='undefined'&&seStopped){seStopped=false;seFailures=0;seRetryAt=0}for(let i=0;i<4;i++){while((typeof seWriteBusy!=='undefined'&&seWriteBusy)||(typeof seReadBusy!=='undefined'&&seReadBusy))await wait(120);if(typeof ONLINE_LOCAL_DIRTY!=='undefined'&&!ONLINE_LOCAL_DIRTY)return true;try{await pushOnlineState()}catch{return false}if(typeof ONLINE_LOCAL_DIRTY==='undefined'||!ONLINE_LOCAL_DIRTY)return true;await wait(220*(i+1))}return false}
+ window.adminPlanSave=async function(id){
+  id=String(id||'').toUpperCase();if(!IDS.includes(id))return;if(saving.has(id))return;if(typeof adminOnly==='function'&&!adminOnly())return;const c=ensurePlatformConfig(),plan=c.plans.find(x=>String(x.id).toUpperCase()===id);if(!plan)return status(id,'error','Plan slot not found. Refresh once.');
+  const btn=document.querySelector(`button[onclick*="adminPlanSave('${id}')"]`);saving.add(id);if(btn){btn.disabled=true;btn.dataset.oldText=btn.textContent;btn.textContent='Saving…'}
+  try{
+   const next={...plan,id,name:text(`pl_${id}_name`,plan.name)||plan.name,monthly:id==='FREE'?0:num(`pl_${id}_monthly`,plan.monthly,0),yearly:num(`pl_${id}_yearly`,plan.yearly,0),lifetime:num(`pl_${id}_lifetime`,plan.lifetime,0),trial:num(`pl_${id}_trial`,plan.trial,0,3650),discount:num(`pl_${id}_discount`,plan.discount,0,100),uploadLimit:num(`pl_${id}_upload`,plan.uploadLimit,1,100000),storageLimit:num(`pl_${id}_storage`,plan.storageLimit,1,100000000),commissionPct:num(`pl_${id}_commission`,plan.commissionPct,0,100),ads:bool(`pl_${id}_ads`,plan.ads),analytics:bool(`pl_${id}_analytics`,plan.analytics),referrals:bool(`pl_${id}_referrals`,plan.referrals),advanced:bool(`pl_${id}_advanced`,plan.advanced),prioritySupport:bool(`pl_${id}_priority`,plan.prioritySupport),verified:bool(`pl_${id}_verified`,plan.verified),active:bool(`pl_${id}_active`,plan.active),archived:false};
+   next.featureText=[];for(let i=1;i<=8;i++){const v=text(`pl_${id}_feature${i}`);if(v)next.featureText.push(v.slice(0,120))}if(!next.featureText.length)throw Error('Add at least one plan feature.');
+   const before=clone(c);c.configHistory=Array.isArray(c.configHistory)?c.configHistory:[];c.configHistory.unshift({version:Date.now(),date:new Date().toISOString(),adminId:S.currentUser?.id||'ADMIN',reason:`Subscription plan ${id} changed`,config:{...before,configHistory:[]}});c.configHistory=c.configHistory.slice(0,30);const index=c.plans.findIndex(x=>String(x.id).toUpperCase()===id);c.plans[index]=next;S.platformConfig=c;
+   try{adminAudit('Changed subscription plan',id,{plan:clone(next),confirmedSave:true})}catch{}
+   status(id,'saving','Saving plan…');save();const live=await flush();status(id,live?'live':'pending',live?'✓ Saved & live':'✓ Saved locally · Online sync pending');try{render()}catch{}setTimeout(()=>status(id,live?'live':'pending',live?'✓ Saved & live':'✓ Saved locally · Online sync pending'),50);
+  }catch(e){console.error('Plan save failed',e);status(id,'error','Save failed: '+(e?.message||'Invalid plan data'))}
+  finally{saving.delete(id);if(btn?.isConnected){btn.disabled=false;btn.textContent=btn.dataset.oldText||'Save Plan'}}
+ };
+})();
+
+</script>
+
+<style id="saleearn-admin-hover-lighting-fix">
+/* Sale Earn Admin Hover Lighting — final theme-aware interaction layer */
+.se-admin.se-admin{
+ --ad-hover:#f5f3ff;--ad-hover-strong:#ece8ff;--ad-hover-text:#1f2430;
+ --ad-hover-muted:#5f687b;--ad-hover-line:#d8d3f5;--ad-hover-shadow:0 10px 24px rgba(81,70,229,.10);
+}
+:root[data-theme="dark"] .se-admin.se-admin{
+ --ad-hover:#181d2b;--ad-hover-strong:#20273a;--ad-hover-text:#f4f6ff;
+ --ad-hover-muted:#b6bed0;--ad-hover-line:#4b4770;--ad-hover-shadow:0 12px 28px rgba(0,0,0,.24);
+}
+/* Tables: color every cell, not only the row, so old white-cell rules cannot win. */
+.se-admin.se-admin .admin-table tbody tr.data-row:hover,
+.se-admin.se-admin .admin-table tbody tr.data-row:focus-within{background:transparent!important;transform:none!important;filter:none!important}
+.se-admin.se-admin .admin-table tbody tr.data-row:hover>td,
+.se-admin.se-admin .admin-table tbody tr.data-row:focus-within>td{
+ background:var(--ad-hover)!important;color:var(--ad-hover-text)!important;
+ border-color:var(--ad-hover-line)!important;box-shadow:none!important;
+}
+.se-admin.se-admin .admin-table tbody tr.data-row:hover>td *,
+.se-admin.se-admin .admin-table tbody tr.data-row:focus-within>td *{color:inherit}
+.se-admin.se-admin .admin-table tbody tr.data-row:hover .muted,
+.se-admin.se-admin .admin-table tbody tr.data-row:hover .small,
+.se-admin.se-admin .admin-table tbody tr.data-row:focus-within .muted,
+.se-admin.se-admin .admin-table tbody tr.data-row:focus-within .small{color:var(--ad-hover-muted)!important}
+/* Keep badges and action buttons semantically colored on a hovered row. */
+.se-admin.se-admin .admin-table tr.data-row:hover .admin-pill.success{background:#e6f5ef!important;color:#1c795d!important}
+.se-admin.se-admin .admin-table tr.data-row:hover .admin-pill.warn{background:#fff4df!important;color:#946417!important}
+.se-admin.se-admin .admin-table tr.data-row:hover .admin-pill.danger{background:#ffedf0!important;color:#b1354a!important}
+:root[data-theme="dark"] .se-admin.se-admin .admin-table tr.data-row:hover .admin-pill.success{background:#173c31!important;color:#8ee5c1!important}
+:root[data-theme="dark"] .se-admin.se-admin .admin-table tr.data-row:hover .admin-pill.warn{background:#3b2e16!important;color:#ffd58b!important}
+:root[data-theme="dark"] .se-admin.se-admin .admin-table tr.data-row:hover .admin-pill.danger{background:#40212a!important;color:#ffadb9!important}
+.se-admin.se-admin .admin-table tr.data-row:hover .btn{background:var(--ad-surface)!important;color:var(--ad-text)!important;border-color:var(--ad-line)!important}
+.se-admin.se-admin .admin-table tr.data-row:hover .btn:hover{background:var(--ad-hover-strong)!important;color:var(--ad-hover-text)!important;border-color:var(--ad-hover-line)!important}
+.se-admin.se-admin .admin-table tr.data-row:hover .btn.danger{background:#fff0f2!important;color:#b1334c!important;border-color:#f1ccd4!important}
+:root[data-theme="dark"] .se-admin.se-admin .admin-table tr.data-row:hover .btn.danger{background:#381d26!important;color:#ffb1bd!important;border-color:#63313e!important}
+/* Remaining admin hover surfaces use the same mode-aware lighting. */
+.se-admin.se-admin .admin-link:hover,
+.se-admin.se-admin .as-shortcut:hover,
+.se-admin.se-admin .as-list-row:hover,
+.se-admin.se-admin .security-row:hover,
+.se-admin.se-admin .admin-search-result:hover,
+.se-admin.se-admin .mail-row:hover,
+.se-admin.se-admin .mail-row.selected{
+ background:var(--ad-hover)!important;color:var(--ad-hover-text)!important;
+ border-color:var(--ad-hover-line)!important;box-shadow:var(--ad-hover-shadow)!important;
+}
+.se-admin.se-admin .as-list-row:hover,.se-admin.se-admin .security-row:hover{border-radius:9px;padding-left:10px;padding-right:10px}
+.se-admin.se-admin .admin-link:hover .label,
+.se-admin.se-admin .as-shortcut:hover strong,
+.se-admin.se-admin .as-list-row:hover strong,
+.se-admin.se-admin .security-row:hover b,
+.se-admin.se-admin .admin-search-result:hover strong,
+.se-admin.se-admin .mail-row:hover strong{color:var(--ad-hover-text)!important}
+.se-admin.se-admin .as-shortcut:hover small,
+.se-admin.se-admin .as-list-row:hover p,
+.se-admin.se-admin .security-row:hover .small,
+.se-admin.se-admin .admin-search-result:hover small,
+.se-admin.se-admin .mail-row:hover small{color:var(--ad-hover-muted)!important}
+.se-admin.se-admin .admin-kpi:hover,
+.se-admin.se-admin .admin-card:hover,
+.se-admin.se-admin .admin-detail-box:hover{
+ background:var(--ad-surface)!important;color:var(--ad-text)!important;
+ border-color:var(--ad-hover-line)!important;box-shadow:var(--ad-hover-shadow)!important;
+}
+.se-admin.se-admin .field input:hover,.se-admin.se-admin .field select:hover,.se-admin.se-admin .field textarea:hover,
+.se-admin.se-admin .admin-search:hover{background:var(--ad-surface)!important;color:var(--ad-text)!important;border-color:var(--ad-hover-line)!important}
+.se-admin.se-admin .field input:focus,.se-admin.se-admin .field select:focus,.se-admin.se-admin .field textarea:focus,
+.se-admin.se-admin .admin-search:focus{background:var(--ad-surface)!important;color:var(--ad-text)!important;border-color:var(--ad-accent)!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--ad-accent) 18%,transparent)!important}
+/* Seller/account tables had the same kind of fixed light hover rules. */
+:root[data-theme="light"] .dash-table tbody tr:hover>td{background:#f7f6ff!important;color:#1d2433!important;border-color:#dfdcf4!important}
+:root[data-theme="dark"] .dash-table tbody tr:hover>td{background:#172033!important;color:#edf3ff!important;border-color:#34425e!important}
+:root[data-theme="light"] .account-order:hover,:root[data-theme="light"] .security-row:hover{background:#f7f6ff!important;color:#1d2433!important}
+:root[data-theme="dark"] .account-order:hover,:root[data-theme="dark"] body:not(.se-admin) .security-row:hover{background:#172033!important;color:#edf3ff!important}
+@media(hover:none){.se-admin.se-admin .admin-table tbody tr.data-row:hover>td{background:transparent!important;color:var(--ad-text)!important;border-color:var(--ad-line)!important}.se-admin.se-admin .admin-table tbody tr.data-row:focus-within>td{background:var(--ad-hover)!important;color:var(--ad-hover-text)!important}}
+@media(prefers-reduced-motion:reduce){.se-admin.se-admin .admin-table tr,.se-admin.se-admin .admin-link,.se-admin.se-admin .as-shortcut,.se-admin.se-admin .as-list-row{transition:none!important;transform:none!important}}
+
+</style>
 </body>
 </html>
