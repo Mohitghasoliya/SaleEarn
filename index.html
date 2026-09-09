@@ -3995,5 +3995,32 @@ html,body{max-width:100%;overflow-x:hidden}img,video,iframe{max-width:100%;heigh
 @media(max-width:900px){.page{padding-left:12px;padding-right:12px}.hero,.section,.dash-shell,.dash-content{min-width:0}.grid,.grid-3,.grid-4,.admin-grid2,.as-cols,.form-grid,.mail-shell{grid-template-columns:1fr!important}.plans{grid-template-columns:1fr!important}.admin-shell{display:block!important}.admin-side{position:sticky!important;top:0;z-index:40;width:100%!important;max-height:none!important;overflow-x:auto;overflow-y:hidden;display:flex!important;align-items:center;gap:6px;padding:8px!important}.admin-side .admin-nav-title,.admin-side .as-side-footer,.admin-side .label{display:none!important}.admin-side .admin-link,.admin-side .admin-brand{flex:0 0 auto!important;min-width:44px!important;width:auto!important;padding:9px!important}.admin-main{width:100%!important}.admin-top{position:sticky;top:54px;z-index:30}.admin-content{padding:12px!important}.admin-kpis{grid-template-columns:1fr 1fr!important}.admin-kpi{min-width:0}.section-head{align-items:flex-start;flex-wrap:wrap}.as-table-wrap,.admin-table-wrap{border-radius:12px}.admin-card{padding:14px!important}.subscription-admin-plan .form-grid{grid-template-columns:1fr!important}.mail-shell{min-height:0}.mail-sidebar{min-height:0}.modal{width:min(96vw,680px)!important;max-height:92vh;overflow:auto}.dash-table{min-width:680px}.dash-card{min-width:0;overflow-x:auto}.header-inner{gap:8px}.nav{overflow-x:auto}.nav a{white-space:nowrap}}
 @media(max-width:560px){.admin-kpis{grid-template-columns:1fr!important}.admin-top{top:52px}.hero{padding:22px 0}.hero h1{font-size:30px;line-height:1.08}.btn{min-height:42px}.field input,.field select,.field textarea{font-size:16px}.admin-side .admin-brand{display:flex!important}.admin-side .admin-brand span:last-child{display:none!important}.admin-side .admin-brand{min-width:46px!important}.admin-top .admin-top-actions{flex-wrap:wrap}.as-shortcuts{grid-template-columns:1fr!important}}
 </style>
+
+<!-- SaleEarn Admin Security Patch v3 -->
+<script>
+/*
+ Added hooks:
+ - Admin user management
+ - blacklist/suspend/active status support
+ - contact limit setting UI hook
+
+ Supabase tables used:
+ profiles.account_status
+ admin_settings.contact_daily_limit
+*/
+window.SaleEarnSecurityPatch = {
+  setUserStatus: async function(userId,status){
+    if(!window.supabase) throw new Error("Supabase client not found");
+    return await supabase.from("profiles")
+      .update({account_status:status})
+      .eq("id",userId);
+  },
+  saveContactLimit: async function(limit){
+    if(!window.supabase) throw new Error("Supabase client not found");
+    return await supabase.from("admin_settings")
+      .update({contact_daily_limit:Number(limit),updated_at:new Date().toISOString()});
+  }
+};
+</script>
 </body>
 </html>
