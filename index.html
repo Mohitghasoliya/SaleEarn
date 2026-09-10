@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sale Earn — Digital Marketplace</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%235146e5'/%3E%3Ctext x='32' y='41' text-anchor='middle' font-family='Arial' font-size='27' font-weight='700' fill='white'%3ESE%3C/text%3E%3C/svg%3E">
 <style>
 :root{
   --ink:#101a33;--muted:#748096;--line:#e4e8f0;--bg:#f7f8fc;--card:#fff;
@@ -1594,6 +1595,22 @@ function normalizedOwnerId(sellerId){
  const u=S.users?.find(x=>x.sellerId===sellerId||x.id===owner||x.authId===owner||x.name===owner);
  return u?.authId || (S.currentUser?.sellerId===sellerId ? (S.currentUser.authId||S.currentUser.id) : null);
 }
+function normalizedOrderStatus(value){
+ const status=String(value||'PENDING').trim().toUpperCase();
+ if(['SUCCESS','PAID','APPROVED','RECEIVED'].includes(status))return 'success';
+ if(['CANCELLED','CANCELED'].includes(status))return 'cancelled';
+ if(['REFUNDED','REFUND'].includes(status))return 'refunded';
+ if(['FAILED','REJECTED'].includes(status))return 'failed';
+ return 'pending';
+}
+function normalizedPayoutStatus(value){
+ const status=String(value||'PENDING').trim().toUpperCase();
+ if(status==='APPROVED')return 'approved';
+ if(['PAID','SUCCESS','RECEIVED'].includes(status))return 'paid';
+ if(['REJECTED','FAILED'].includes(status))return 'rejected';
+ if(['CANCELLED','CANCELED'].includes(status))return 'cancelled';
+ return 'pending';
+}
 async function syncNormalizedCore(){
  if(NORMALIZED_SYNC_BUSY||!SUPABASE_READY||ONLINE_LOADING)return;
  const {data:{session}}=await supabaseClient.auth.getSession();
@@ -1620,15 +1637,17 @@ async function syncNormalizedCore(){
    if(r.error)console.warn('products sync:',r.error.message);
   }
   const buyerIds=new Set([me.id,u?.id,u?.userId].filter(Boolean).map(String));
-  const os=(S.orders||[]).filter(x=>buyerIds.has(String(x.customerId))||normalizedOwnerId(x.sellerId)===me.id);
+  // Buyers create their own normalized order rows. Sellers read those rows through RLS;
+  // they must never re-upsert another buyer's order with a null buyer_id.
+  const os=(S.orders||[]).filter(x=>buyerIds.has(String(x.customerId)));
   if(os.length){
-   const rows=os.map(x=>({id:String(x.id),buyer_id:buyerIds.has(String(x.customerId))?me.id:null,seller_id:normalizedOwnerId(x.sellerId),product_id:x.productId||null,product_title:product(x.productId)?.title||x.productTitle||'Deleted product',amount:Number(x.amount||0),status:String(x.status||'PENDING').toLowerCase(),created_at:x.date||new Date().toISOString()})).filter(x=>x.seller_id);
+   const rows=os.map(x=>({id:String(x.id),buyer_id:me.id,seller_id:normalizedOwnerId(x.sellerId),product_id:x.productId||null,product_title:product(x.productId)?.title||x.productTitle||'Deleted product',amount:Number(x.amount||0),status:normalizedOrderStatus(x.status),created_at:x.date||new Date().toISOString()})).filter(x=>x.buyer_id&&x.seller_id);
    if(rows.length){const r=await supabaseClient.from('orders').upsert(rows,{onConflict:'id'});if(r.error)console.warn('orders sync:',r.error.message);}
   }
   const payoutUserIds=new Set([me.id,u?.id,u?.userId].filter(Boolean).map(String));
   const ps2=(S.payouts||[]).filter(x=>payoutUserIds.has(String(x.userId))||x.sellerId===sid);
   if(ps2.length){
-   const rows=ps2.map(x=>({id:String(x.id),user_id:me.id,amount:Number(x.amount||0),status:String(x.status||'PENDING').toLowerCase(),payment_method:x.method||x.paymentMethod||null,payment_details:x.paymentDetails||{},returned_amount:Number(x.returnedAmount||0),cancelled_at:x.cancelledAt||null,created_at:x.date||x.createdAt||new Date().toISOString(),updated_at:new Date().toISOString()}));
+   const rows=ps2.map(x=>({id:String(x.id),user_id:me.id,amount:Number(x.amount||0),status:normalizedPayoutStatus(x.status),payment_method:x.method||x.paymentMethod||null,payment_details:x.paymentDetails||{},returned_amount:Number(x.returnedAmount||0),cancelled_at:x.cancelledAt||null,created_at:x.date||x.createdAt||new Date().toISOString(),updated_at:new Date().toISOString()}));
    const r=await supabaseClient.from('payouts').upsert(rows,{onConflict:'id'});if(r.error)console.warn('payouts sync:',r.error.message);
   }
   const ws=(S.warnings||[]).filter(x=>payoutUserIds.has(String(x.userId))||x.sellerId===sid);
@@ -1696,7 +1715,8 @@ async function restoreSupabaseSession(){
     if(authUser){
       let u=S.users.find(x=>x.authId===authUser.id||x.id===authUser.id||String(x.email||"").toLowerCase()===String(authUser.email||"").toLowerCase());
       const adminFlag=await syncSupabaseAdmin(authUser);
-      const profileRow=(await supabaseClient.from('profiles').select('display_name,role,score,user_id').eq('id',authUser.id).maybeSingle()).data;
+      const {data:profileRow,error:profileLoadError}=await supabaseClient.from('profiles').select('display_name,role,score,user_id').eq('id',authUser.id).maybeSingle();
+      if(profileLoadError&&profileLoadError.code!=='PGRST116')console.warn('Profile load failed after session restore',profileLoadError.message||profileLoadError);
       if(!u){
         u={id:authUser.id,authId:authUser.id,userId:profileRow?.user_id||('SE-'+String(authUser.id).replace(/-/g,'').slice(0,8).toUpperCase()),name:profileRow?.display_name||authUser.user_metadata?.name||authUser.email?.split('@')[0]||'User',email:authUser.email||'',role:profileRow?.role||'user',verified:true,score:Number(profileRow?.score??80)};
         if(!adminFlag){
