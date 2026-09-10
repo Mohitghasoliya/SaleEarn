@@ -1257,6 +1257,129 @@ body.se-studio-structured-sort [data-se-drop-position=before]::before{top:-7px!i
 #seWebsiteStudio .se-studio-secure-note{margin:10px 12px!important;padding:11px 12px!important;border:1px solid #cfe9dc!important;border-radius:12px!important;background:#f1faf6!important;color:#27684f!important;font-size:11px!important;line-height:1.5!important}
 </style>
 
+
+<style id="saleearn-calm-mode-lighting-v14">
+/* Sale Earn v14 — calm, accessible mode lighting across every device. */
+html:root[data-theme="light"]{
+ --se-page:#f4f6fa;--se-page-2:#eef2f7;--se-surface:#ffffff;--se-surface-2:#f8fafd;--se-surface-3:#f1f4f8;
+ --se-text:#172033;--se-heading:#111a2d;--se-muted:#667085;--se-line:#dce3ed;--se-line-strong:#cbd5e2;
+ --se-accent:#5a50d2;--se-accent-2:#6b5bd7;--se-accent-soft:#eeecff;--se-input:#fbfcfe;
+ --se-shadow:0 12px 32px rgba(25,38,68,.075);--se-shadow-soft:0 6px 18px rgba(25,38,68,.055);
+ color-scheme:light;
+}
+html:root[data-theme="dark"]{
+ --se-page:#070b12;--se-page-2:#0a101a;--se-surface:#0f1724;--se-surface-2:#131d2b;--se-surface-3:#182334;
+ --se-text:#e4eaf3;--se-heading:#f0f3f8;--se-muted:#9aa8ba;--se-line:#263246;--se-line-strong:#344258;
+ --se-accent:#7770d8;--se-accent-2:#655fc1;--se-accent-soft:#24213f;--se-input:#0b121d;
+ --se-shadow:0 16px 38px rgba(0,0,0,.30);--se-shadow-soft:0 8px 22px rgba(0,0,0,.22);
+ color-scheme:dark;
+}
+html:root[data-theme] body{color:var(--se-text)!important;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+html:root[data-theme="light"] body{background:radial-gradient(circle at 8% 0%,rgba(91,80,210,.055),transparent 28%),linear-gradient(145deg,var(--se-page),var(--se-page-2))!important}
+html:root[data-theme="dark"] body{background:radial-gradient(circle at 12% 0%,rgba(102,94,190,.09),transparent 28%),linear-gradient(145deg,var(--se-page),var(--se-page-2))!important}
+html:root[data-theme] body::before{opacity:.16!important;filter:none!important}
+html:root[data-theme] h1,html:root[data-theme] h2,html:root[data-theme] h3,html:root[data-theme] h4,html:root[data-theme] strong,html:root[data-theme] b{color:var(--se-heading)}
+html:root[data-theme] .muted,html:root[data-theme] .small,html:root[data-theme] .sub,html:root[data-theme] small{color:var(--se-muted)}
+
+/* Global chrome and calm surfaces. */
+html:root[data-theme] .topbar,html:root[data-theme] .mobile-topbar,html:root[data-theme] .mobile-bottom-nav,html:root[data-theme] .sticky-mobile-actions{background:color-mix(in srgb,var(--se-surface) 94%,transparent)!important;color:var(--se-text)!important;border-color:var(--se-line)!important;box-shadow:var(--se-shadow-soft)!important;backdrop-filter:blur(16px)!important}
+html:root[data-theme="dark"] .topbar,html:root[data-theme="dark"] .mobile-topbar,html:root[data-theme="dark"] .mobile-bottom-nav{background:rgba(10,16,26,.94)!important}
+html:root[data-theme] .logo,html:root[data-theme] .brand{color:var(--se-heading)!important}
+html:root[data-theme] .nav a,html:root[data-theme] .nav button,html:root[data-theme] .mobile-bottom-nav button{color:var(--se-muted)!important}
+html:root[data-theme] .mobile-bottom-nav button.active{background:var(--se-accent-soft)!important;color:var(--se-accent)!important;box-shadow:none!important}
+html:root[data-theme] .search,html:root[data-theme] .searchbox,html:root[data-theme] .search input,html:root[data-theme] .searchbox input{background:var(--se-input)!important;color:var(--se-text)!important;border-color:var(--se-line)!important}
+html:root[data-theme] input::placeholder,html:root[data-theme] textarea::placeholder{color:color-mix(in srgb,var(--se-muted) 82%,transparent)!important}
+
+/* Hero: strong hierarchy without glare. */
+html:root[data-theme="light"] .hero{background:radial-gradient(circle at 82% 18%,rgba(104,91,215,.12),transparent 31%),linear-gradient(180deg,#ffffff 0%,#f3f5fa 100%)!important;border-color:var(--se-line)!important}
+html:root[data-theme="dark"] .hero{background:radial-gradient(circle at 82% 14%,rgba(105,94,190,.14),transparent 34%),linear-gradient(155deg,#0b111d 0%,#11182a 54%,#0a101a 100%)!important;border-color:var(--se-line)!important}
+html:root[data-theme] .hero h1{color:var(--se-heading)!important;text-shadow:none!important}
+html:root[data-theme] .hero p{color:var(--se-muted)!important}
+html:root[data-theme="dark"] .eyebrow{color:#aaa4e6!important}
+html:root[data-theme="light"] .eyebrow{color:#5b50c8!important}
+html:root[data-theme] .hero-art,html:root[data-theme] .pick-card,html:root[data-theme] .ad-premium-card{background:var(--se-surface-2)!important;color:var(--se-text)!important;border-color:var(--se-line)!important;box-shadow:var(--se-shadow-soft)!important}
+html:root[data-theme="dark"] .hero-art{background:#111a29!important}
+
+/* Reusable content surfaces. */
+html:root[data-theme] .card,html:root[data-theme] .product-card,html:root[data-theme] .category-card,html:root[data-theme] .detail-main,html:root[data-theme] .review-box,html:root[data-theme] .bundle-box,html:root[data-theme] .faq,html:root[data-theme] .profile-head,html:root[data-theme] .profile-card,html:root[data-theme] .seller-card,html:root[data-theme] .seller-box,html:root[data-theme] .auth-box,html:root[data-theme] .modal,html:root[data-theme] .success-card{background:var(--se-surface)!important;color:var(--se-text)!important;border-color:var(--se-line)!important;box-shadow:var(--se-shadow-soft)!important}
+html:root[data-theme] .thumb,html:root[data-theme] .detail-image,html:root[data-theme] .mini-thumb{background:var(--se-surface-3)!important}
+html:root[data-theme] .product-card:hover,html:root[data-theme] .category-card:hover,html:root[data-theme] .asset-card:hover{border-color:color-mix(in srgb,var(--se-accent) 55%,var(--se-line))!important;box-shadow:var(--se-shadow)!important}
+html:root[data-theme] .tag,html:root[data-theme] .pill,html:root[data-theme] .featured-badge{background:var(--se-accent-soft)!important;color:color-mix(in srgb,var(--se-accent) 88%,var(--se-heading))!important;border-color:color-mix(in srgb,var(--se-accent) 25%,var(--se-line))!important}
+
+/* Forms, buttons and focus lighting. */
+html:root[data-theme] .field input,html:root[data-theme] .field textarea,html:root[data-theme] .field select,html:root[data-theme] .input,html:root[data-theme] .admin-search{background:var(--se-input)!important;color:var(--se-text)!important;border-color:var(--se-line)!important;box-shadow:none!important}
+html:root[data-theme] .field input:focus,html:root[data-theme] .field textarea:focus,html:root[data-theme] .field select:focus,html:root[data-theme] .search input:focus,html:root[data-theme] .searchbox input:focus{border-color:var(--se-accent)!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--se-accent) 18%,transparent)!important;outline:none!important}
+html:root[data-theme] .btn:not(.primary):not(.danger):not(.green),html:root[data-theme] .view-toggle button,html:root[data-theme] .faq button{background:var(--se-surface-2)!important;color:var(--se-text)!important;border-color:var(--se-line)!important;box-shadow:none!important}
+html:root[data-theme] .btn:not(.primary):not(.danger):not(.green):hover,html:root[data-theme] .view-toggle button:hover{background:var(--se-surface-3)!important;border-color:var(--se-line-strong)!important;box-shadow:var(--se-shadow-soft)!important}
+html:root[data-theme] .btn.primary{background:linear-gradient(135deg,#5b52cf,#6b5bd7)!important;color:#f8f9ff!important;border-color:transparent!important;box-shadow:0 10px 24px rgba(75,65,165,.22)!important}
+html:root[data-theme="dark"] .btn.primary{background:linear-gradient(135deg,#5751b6,#665dc0)!important;color:#f1f2fa!important;box-shadow:0 9px 22px rgba(0,0,0,.24)!important}
+html:root[data-theme] .btn.danger{background:color-mix(in srgb,#b94856 14%,var(--se-surface))!important;color:color-mix(in srgb,#e06a76 78%,var(--se-text))!important;border-color:color-mix(in srgb,#b94856 38%,var(--se-line))!important}
+
+/* Marketplace, Account and Mail. */
+html:root[data-theme] .sidebar-filter,html:root[data-theme] .account-nav,html:root[data-theme] .account-panel,html:root[data-theme] .account-profile-card,html:root[data-theme] .account-stat,html:root[data-theme] .asset-card,html:root[data-theme] .mail-sidebar,html:root[data-theme] .mail-main,html:root[data-theme] .mail-list,html:root[data-theme] .mail-detail,html:root[data-theme] .mail-info-card{background:var(--se-surface)!important;color:var(--se-text)!important;border-color:var(--se-line)!important;box-shadow:var(--se-shadow-soft)!important}
+html:root[data-theme] .filter-cat,html:root[data-theme] .account-nav button,html:root[data-theme] .mail-nav{background:transparent!important;color:var(--se-muted)!important;border-color:transparent!important}
+html:root[data-theme] .filter-cat:hover,html:root[data-theme] .filter-cat.active,html:root[data-theme] .account-nav button:hover,html:root[data-theme] .mail-nav:hover{background:var(--se-surface-3)!important;color:var(--se-text)!important}
+html:root[data-theme] .account-nav button.active,html:root[data-theme] .mail-nav.active{background:var(--se-accent-soft)!important;color:color-mix(in srgb,var(--se-accent) 85%,var(--se-heading))!important;box-shadow:inset 3px 0 var(--se-accent)!important}
+html:root[data-theme] .account-order,html:root[data-theme] .mail-row,html:root[data-theme] .security-row{border-color:var(--se-line)!important;color:var(--se-text)!important}
+html:root[data-theme] .account-order:hover,html:root[data-theme] .mail-row:hover{background:var(--se-surface-2)!important}
+
+/* Seller dashboard. */
+html:root[data-theme] .dashboard-shell,html:root[data-theme] .dash-content{background:transparent!important;color:var(--se-text)!important}
+html:root[data-theme] .dash-side,html:root[data-theme] .dash-top,html:root[data-theme] .metric,html:root[data-theme] .dash-card,html:root[data-theme] .dash-form,html:root[data-theme] .power,html:root[data-theme] .plan,html:root[data-theme] .settings-card,html:root[data-theme] .store-mini{background:var(--se-surface)!important;color:var(--se-text)!important;border-color:var(--se-line)!important;box-shadow:var(--se-shadow-soft)!important}
+html:root[data-theme="dark"] .dash-top{background:rgba(12,19,30,.95)!important}
+html:root[data-theme] .dash-link{background:transparent!important;color:var(--se-muted)!important;border-color:transparent!important;box-shadow:none!important}
+html:root[data-theme] .dash-link:hover{background:var(--se-surface-3)!important;color:var(--se-text)!important;border-color:var(--se-line)!important;box-shadow:none!important}
+html:root[data-theme] .dash-link.active{background:var(--se-accent-soft)!important;color:color-mix(in srgb,var(--se-accent) 85%,var(--se-heading))!important;border-color:color-mix(in srgb,var(--se-accent) 28%,var(--se-line))!important;box-shadow:inset 3px 0 var(--se-accent)!important}
+html:root[data-theme] .dash-table,html:root[data-theme] .admin-table{background:var(--se-surface)!important;color:var(--se-text)!important;border-color:var(--se-line)!important}
+html:root[data-theme] .dash-table th,html:root[data-theme] .admin-table th{background:var(--se-surface-2)!important;color:var(--se-muted)!important;border-color:var(--se-line)!important}
+html:root[data-theme] .dash-table td,html:root[data-theme] .admin-table td{background:transparent!important;color:var(--se-text)!important;border-color:var(--se-line)!important}
+html:root[data-theme] .dash-table tr:hover td,html:root[data-theme] .admin-table tr:hover td{background:var(--se-surface-2)!important}
+
+/* Admin Studio. */
+html:root[data-theme] body.se-admin .admin-shell,html:root[data-theme] .admin-shell{background:transparent!important;color:var(--se-text)!important}
+html:root[data-theme] .admin-side{background:var(--se-surface)!important;color:var(--se-text)!important;border-color:var(--se-line)!important;box-shadow:var(--se-shadow)!important}
+html:root[data-theme] .admin-main,html:root[data-theme] .admin-content{background:transparent!important;color:var(--se-text)!important}
+html:root[data-theme] .admin-top{background:color-mix(in srgb,var(--se-surface) 95%,transparent)!important;color:var(--se-text)!important;border-color:var(--se-line)!important;box-shadow:var(--se-shadow-soft)!important}
+html:root[data-theme="dark"] .admin-top{background:rgba(12,19,30,.96)!important}
+html:root[data-theme] .admin-card,html:root[data-theme] .admin-kpi,html:root[data-theme] .admin-detail-box,html:root[data-theme] .admin-stat,html:root[data-theme] .admin-confirm{background:var(--se-surface)!important;color:var(--se-text)!important;border-color:var(--se-line)!important;box-shadow:var(--se-shadow-soft)!important}
+html:root[data-theme] .admin-link{background:transparent!important;color:var(--se-muted)!important;border-color:transparent!important;box-shadow:none!important}
+html:root[data-theme] .admin-link:hover{background:var(--se-surface-3)!important;color:var(--se-text)!important;border-color:var(--se-line)!important;box-shadow:none!important}
+html:root[data-theme] .admin-link.active{background:var(--se-accent-soft)!important;color:color-mix(in srgb,var(--se-accent) 86%,var(--se-heading))!important;border-color:color-mix(in srgb,var(--se-accent) 28%,var(--se-line))!important;box-shadow:inset 3px 0 var(--se-accent)!important}
+html:root[data-theme] .as-eyebrow,html:root[data-theme] .admin-nav-title,html:root[data-theme] .dash-nav-title{color:var(--se-muted)!important}
+
+/* Modals, payment, notifications and overlays. */
+html:root[data-theme] .modal-bg,html:root[data-theme] .admin-confirm-bg{background:rgba(3,7,13,.62)!important;backdrop-filter:blur(5px)!important}
+html:root[data-theme] .payment-layout,html:root[data-theme] .payment-right{background:var(--se-page-2)!important;color:var(--se-text)!important}
+html:root[data-theme] .payment-left,html:root[data-theme] .payment-right-inner,html:root[data-theme] .payment-total,html:root[data-theme] .pay-opt{background:var(--se-surface)!important;color:var(--se-text)!important;border-color:var(--se-line)!important}
+html:root[data-theme] .pay-opt:hover{background:var(--se-surface-2)!important}.pay-opt.active{background:var(--se-accent-soft)!important;color:var(--se-text)!important}
+html:root[data-theme] .toast{background:var(--se-surface-3)!important;color:var(--se-text)!important;border:1px solid var(--se-line)!important;box-shadow:var(--se-shadow)!important}
+html:root[data-theme] .footer{background:#0c121d!important;color:#e1e7f0!important;border-color:#232f41!important}
+html:root[data-theme] .footer a{color:#aab6c8!important}
+
+/* Mobile drawer lighting and safe device behavior. */
+@media(max-width:900px){
+ html:root[data-theme] [data-se-drawer-panel]{background:var(--se-surface)!important;color:var(--se-text)!important;border-color:var(--se-line)!important;box-shadow:22px 0 58px rgba(0,0,0,.28)!important}
+ html:root[data-theme] .se-mobile-drawer-head{background:var(--se-surface)!important;border-color:var(--se-line)!important}
+ html:root[data-theme] .se-mobile-drawer-head b{color:var(--se-heading)!important}html:root[data-theme] .se-mobile-drawer-head small{color:var(--se-muted)!important}
+ html:root[data-theme] .se-mobile-drawer-close,html:root[data-theme] .se-mobile-side-trigger{background:var(--se-surface-2)!important;color:var(--se-text)!important;border-color:var(--se-line)!important;box-shadow:none!important}
+ html:root[data-theme] .se-mobile-drawer-shade{background:rgba(3,7,13,.67)!important;backdrop-filter:blur(4px)!important}
+ html:root[data-theme] .dashboard-shell>.dash-main>.dash-top,html:root[data-theme] .admin-top.se-has-side-trigger,html:root[data-theme] .market-tools.se-has-side-trigger,html:root[data-theme] .account-head{background:color-mix(in srgb,var(--se-surface) 95%,transparent)!important;border-color:var(--se-line)!important}
+}
+
+/* Website Studio follows the selected theme without harsh white panels. */
+html:root[data-theme="dark"] #seWebsiteStudio{--studio-ink:var(--se-text)!important;--studio-muted:var(--se-muted)!important;--studio-line:var(--se-line)!important;--studio-panel:var(--se-page-2)!important}
+html:root[data-theme="dark"] #seWebsiteStudio .se-studio-top,html:root[data-theme="dark"] #seWebsiteStudio .se-studio-panel,html:root[data-theme="dark"] #seWebsiteStudio .se-studio-panel-head,html:root[data-theme="dark"] #seWebsiteStudio .se-studio-tabs,html:root[data-theme="dark"] #seWebsiteStudio .se-studio-card,html:root[data-theme="dark"] #seWebsiteStudio .se-studio-confirm{background:var(--se-surface)!important;color:var(--se-text)!important;border-color:var(--se-line)!important;box-shadow:var(--se-shadow)!important}
+html:root[data-theme="dark"] #seWebsiteStudio .se-studio-card h3,html:root[data-theme="dark"] #seWebsiteStudio .se-studio-panel-head h2,html:root[data-theme="dark"] #seWebsiteStudio .se-studio-confirm-copy h2{color:var(--se-heading)!important}
+html:root[data-theme="dark"] #seWebsiteStudio .se-studio-panel-head p,html:root[data-theme="dark"] #seWebsiteStudio .se-studio-confirm-copy p{color:var(--se-muted)!important}
+html:root[data-theme="dark"] #seWebsiteStudio .se-studio-field input,html:root[data-theme="dark"] #seWebsiteStudio .se-studio-field textarea,html:root[data-theme="dark"] #seWebsiteStudio .se-studio-field select{background:var(--se-input)!important;color:var(--se-text)!important;border-color:var(--se-line)!important}
+html:root[data-theme="dark"] #seWebsiteStudio .se-studio-top>[data-action],html:root[data-theme="dark"] #seWebsiteStudio .se-studio-confirm-actions button{background:var(--se-surface-2)!important;color:var(--se-text)!important;border-color:var(--se-line)!important}
+html:root[data-theme="dark"] #seWebsiteStudio .se-studio-top>[data-action=publish],html:root[data-theme="dark"] #seWebsiteStudio .se-studio-confirm-actions button.primary{background:linear-gradient(135deg,#5751b6,#665dc0)!important;color:#f2f3fa!important;border-color:transparent!important}
+
+/* Scrollbars and selection are intentionally muted. */
+html:root[data-theme] *{scrollbar-color:var(--se-line-strong) transparent}
+html:root[data-theme] ::selection{background:color-mix(in srgb,var(--se-accent) 32%,transparent);color:var(--se-heading)}
+</style>
+
 </head>
 <body>
 <div id="siteLoader" class="site-loader" aria-label="Loading Sale Earn" aria-live="polite">
@@ -2460,8 +2583,8 @@ function accountPanel(){
 else content=`<div class="account-help"><div><h2 style="margin:0 0 6px">Need Help?</h2><p style="margin:0;opacity:.82">Our support team is available to assist you with product and account questions.</p><b>Support</b></div><button class="btn" onclick="window.open('https://t.me/NextIdea66','_blank')">Message Us</button></div><div class="account-stats"><div class="account-stat"><b>${orders.length}</b><span class="muted">Orders Placed</span></div><div class="account-stat"><b>${files.length}</b><span class="muted">Digital Assets</span></div></div><div class="account-panel"><div class="section-head"><div><h3>Recent Activity</h3><p>Click any item to open its related page.</p></div><button class="btn" onclick="go('account/orders')">View All</button></div>${orders.slice(0,6).map(o=>{const p=product(o.productId);return `<div class="account-order" onclick="accountOrderClick('${o.id}')"><div class="account-order-main"><b>${esc(p?.title||'Product')}</b><div class="small muted">${new Date(o.date).toLocaleString('en-IN')} · ${esc(o.id)}</div></div><span class="account-badge ${o.status==='SUCCESS'?'success':o.status==='PENDING'?'pending':'cancelled'}">${esc(o.status)}</span></div>`}).join('')||`<div class="account-empty"><p class="muted">No recent activity yet.</p><button class="btn primary" onclick="go('market')">Explore Marketplace</button></div>`}</div>`;
  return `${header()}<main class="page account-shell"><div class="container"><div class="account-head"><div class="account-user"><div class="account-avatar">${esc((u.name||'U').charAt(0).toUpperCase())}</div><div><h1 style="margin:0">Account Settings</h1><p class="muted" style="margin:4px 0">${esc(u.email)}</p></div></div><div style="display:flex;gap:8px">${u.isAdmin?`<button class="btn" onclick="go('admin')">Admin</button>`:""}<button class="btn" onclick="signout()">↪ Sign Out</button></div></div><div class="account-layout">${nav}<section>${content}</section></div></div></main>${footer()}`;
 }
-function setTheme(theme){const u=S.currentUser;if(!u)return;u.theme=theme;applyTheme();save();toast(theme==='dark'?'Dark mode enabled':theme==='light'?'Light mode enabled':'System mode enabled');render()}
-function applyTheme(){const t=S.currentUser?.theme||'light';const dark=t==='dark'||(t==='system'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=dark?'dark':'light'}
+function setTheme(theme){const t=['light','dark','system'].includes(theme)?theme:'system',u=S.currentUser;if(u)u.theme=t;localStorage.setItem('saleEarnTheme',t);applyTheme();if(u)save();toast(t==='dark'?'Dark mode enabled':t==='light'?'Light mode enabled':'System mode enabled');render()}
+function applyTheme(){const t=S.currentUser?.theme||localStorage.getItem('saleEarnTheme')||'system';const dark=t==='dark'||(t==='system'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=dark?'dark':'light'}
 (function(){try{const mq=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)');if(mq){const fn=()=>{if(S.currentUser?.theme==='system')applyTheme()};mq.addEventListener?mq.addEventListener('change',fn):mq.addListener&&mq.addListener(fn)}}catch(e){}})();
 function updateProfile(){const u=S.currentUser;if(!u)return;const newName=document.getElementById("profileName").value.trim()||u.name;if(newName!==u.name&&u.profileLastChanged&&Date.now()-u.profileLastChanged<7*86400000){toast("Profile name can be changed once every 7 days");return}u.name=newName;u.profileLastChanged=Date.now();u.mobile=document.getElementById("profileMobile").value.trim();const ss=u.sellerId?seller(u.sellerId):null;if(ss)ss.owner=u.name;save();toast("Profile updated");render()}
 function changePassword(){const u=S.currentUser;if(!u)return;const a=document.getElementById("currentPass").value,b=document.getElementById("newPass").value,c=document.getElementById("confirmPass").value;if(a!==u.password){toast("Current password is incorrect");return}if(b.length<6){toast("New password must be at least 6 characters");return}if(b!==c){toast("Passwords do not match");return}u.password=b;save();toast("Password changed successfully");render()}
