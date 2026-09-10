@@ -1159,6 +1159,24 @@ html[data-theme],html[data-theme] body{background:var(--theme-bg)!important;colo
 :root[data-theme="dark"] .mail-info-card p,:root[data-theme="dark"] .mail-info-card small{color:var(--ad-muted)}
 </style>
 
+<style id="seDeviceIsolatedV9Polish">
+/* Device-isolated editor feedback */
+.se-studio-device-note b{color:var(--brand,#6558d9)}
+.se-studio-scope-badge{text-transform:uppercase}
+@media(max-width:600px){.se-studio-breakpoints button[data-view="mobile"]{box-shadow:0 0 0 2px rgba(101,88,217,.28)}}
+</style>
+
+<style id="saleearn-desktop-mobile-drawer-guard-v10">
+/* Mobile drawer chrome must never render in desktop sidebars. */
+@media(min-width:901px){
+ .se-mobile-drawer-head,
+ .se-mobile-drawer-close,
+ .se-mobile-side-trigger,
+ .se-mobile-drawer-shade{display:none!important;visibility:hidden!important;pointer-events:none!important}
+ [data-se-drawer-panel]{visibility:visible!important;transform:none!important}
+}
+</style>
+
 </head>
 <body>
 <div id="siteLoader" class="site-loader" aria-label="Loading Sale Earn" aria-live="polite">
@@ -3623,6 +3641,7 @@ function mailPanel(){
   const detail=selected?`<div class="mail-detail"><div class="mail-detail-head"><button class="btn" onclick="mailBack()">← Back</button><div class="mail-detail-actions"><button class="btn" onclick="mailToggleStar('${esc(selected.id)}')">${selected.starred?'★ Starred':'☆ Star'}</button><button class="btn danger" onclick="mailDelete('${esc(selected.id)}')">Delete</button></div></div><div class="mail-detail-title"><div class="mail-avatar large">${esc(initials(selected.type==='sent'?selected.to:selected.from))}</div><div><h2>${esc(selected.subject||'(No subject)')}</h2><div class="muted small">${selected.type==='sent'?'To: '+esc(selected.to):'From: '+esc(selected.from||'Sale Earn')} · ${esc(new Date(selected.date).toLocaleString('en-IN'))}</div></div></div><div class="mail-detail-body">${esc(selected.body||'').replace(/\n/g,'<br>')}</div></div>`:`<div class="mail-list"><div class="mail-list-head"><div><b>${mailTab==='sent'?'Sent':'Inbox'}</b><span class="mail-count">${active.length}</span></div><button class="btn primary" onclick="mailCompose()">+ Compose</button></div>${rows}</div>`;
   return adminLayout('mail','Mail Center',`${titleBlock('COMMUNICATION','Mail Center','A clean internal message center for Sale Earn users and admin communication.')}<div class="mail-shell"><aside class="mail-sidebar"><button class="mail-compose-btn" onclick="mailCompose()">✎ Compose</button><button class="mail-nav ${mailTab==='inbox'?'active':''}" onclick="mailTab('inbox')">✉ Inbox ${unread?`<span>${unread}</span>`:''}</button><button class="mail-nav ${mailTab==='sent'?'active':''}" onclick="mailTab('sent')">↗ Sent <span>${sent.length}</span></button><div class="mail-info-card"><strong>SMTP connected</strong><p>Auth OTP delivery is handled securely by Supabase SMTP.</p><small>${esc(cfg().branding?.emailSenderName||'Sale Earn')}</small></div></aside><section class="mail-main">${detail}</section></div>`);
 }
+window.mailPanel=mailPanel;
 window.studioMenu=function(){mobileOpen=!mobileOpen;document.body.classList.toggle('as-menu-open',mobileOpen);};
 const groups=[['WORKSPACE',[['','grid','Overview'],['control','sliders','Website controls'],['products','box','Products'],['users','users','Users & sellers'],['orders','orders','Orders']]],['BUSINESS',[['sales','chart','Sales & earnings'],['payouts','wallet','Withdrawals'],['commission','tag','Commissions'],['coupons','tag','Coupons'],['analytics','chart','Analytics'],['money','wallet','Money overview']]],['TRUST & GROWTH',[['reviews','star','Reviews'],['smartreviews','star','Review insights'],['warnings','bell','Warnings'],['risk','shield','Risk center'],['ranking','chart','Seller rankings'],['growth','bolt','Seller growth']]],['SYSTEM',[['mail','mail','Mail Center'],['audit','clock','Activity log'],['security','shield','Security'],['emergency','bolt','Emergency controls'],['deleted','trash','Recycle bin'],['system','sliders','System health']]]];
 window.adminSidebar=function(active){return `<aside class="admin-side"><a class="as-logo" href="#home" title="Open Sale Earn Home"><span class="logo-mark">SE</span><span>${esc(siteName())}<small>ADMIN STUDIO</small></span></a><nav class="as-nav" aria-label="Admin navigation">${groups.map(([g,items])=>`<div class="admin-nav-title">${g}</div>${items.map(([id,ic,label])=>`<button class="admin-link ${active===id?'active':''}" onclick="adminNav('${id}')" ${active===id?'aria-current="page"':''}>${icon(ic)}<span class="label">${label}</span>${id==='payouts'&&(S.payouts||[]).some(x=>x.status==='PENDING')?`<span class="as-count">${S.payouts.filter(x=>x.status==='PENDING').length}</span>`:''}</button>`).join('')}`).join('')}</nav><div class="as-side-footer"><button class="admin-link" onclick="go('home')">${icon('globe')}<span class="label">Visit marketplace</span>${icon('arrow')}</button><div class="as-account"><span class="as-avatar">${esc(initials(S.currentUser?.name))}</span><div style="flex:1"><strong>${esc(S.currentUser?.name||'Administrator')}</strong><small>Administrator · TEST</small></div><button class="btn" aria-label="Sign out" onclick="signout()">${icon('exit')}</button></div></div></aside>`;};
@@ -3705,7 +3724,7 @@ window.applyPlatformConfig=function(){
    extra('home-testimonials','From our community','<div class="grid">'+(cm.testimonials||[]).map(x=>`<div class="category-card"><p>${esc(x.quote)}</p><h3>${esc(x.name)}</h3></div>`).join('')+'</div>');
    const map={hero:'home-hero',categories:'home-categories',trending:'home-trending','top-sellers':'home-top-sellers',subscriptions:'home-subscriptions',testimonials:'home-testimonials',faq:'home-faq'};
    c.sections.slice().sort((a,b)=>a.order-b.order).forEach(sec=>{const el=document.getElementById(map[sec.id]);if(el){el.style.display=sec.enabled===false?'none':'';main.append(el);}});
-   const cta=document.querySelector('#home-hero .hero-actions .btn.primary');if(cta&&cm.ctaText)cta.textContent=cm.ctaText;
+   const cta=document.querySelector('#home-hero .hero-actions .btn:not(.primary)');if(cta)cta.textContent=cm.ctaText||'Start Selling';
    const art=document.querySelector('#home-hero .hero-art');if(art&&cm.heroImage){try{const u=new URL(cm.heroImage);if(u.protocol==='https:'){const im=document.createElement('img');im.src=u.href;im.alt=cm.heroTitle||'Marketplace';im.style.cssText='width:100%;height:300px;object-fit:cover;border-radius:18px';art.replaceChildren(im);}}catch{}}
   }
  }
@@ -4030,86 +4049,413 @@ html,body{max-width:100%;overflow-x:hidden}img,video,iframe{max-width:100%;heigh
 })();
 </script>
 
-<style id="saleearn-mobile-sidebar-premium">
-@media(max-width:768px){
+<style id="saleearn-visual-website-studio-v2">
+/* Sale Earn Visual Website Studio v1 */
+:root{--se-studio-panel:380px}
+.se-studio-launch{display:inline-flex!important;align-items:center;gap:8px;min-height:42px;padding:9px 14px!important;border-radius:12px!important;background:linear-gradient(135deg,#6354da,#8068ff)!important;color:#fff!important;border:0!important;box-shadow:0 10px 24px rgba(99,84,218,.25);font-weight:800;cursor:pointer}
+.se-studio-launch:hover{transform:translateY(-1px);box-shadow:0 14px 30px rgba(99,84,218,.35)}
+.se-studio-root{position:fixed;inset:0;z-index:100000;pointer-events:none;font-family:Inter,Arial,sans-serif;color:#172033}
+.se-studio-root *{box-sizing:border-box}
+.se-studio-top{pointer-events:auto;position:fixed;left:16px;right:16px;top:12px;height:58px;border:1px solid rgba(255,255,255,.65);border-radius:17px;background:rgba(255,255,255,.94);backdrop-filter:blur(18px);box-shadow:0 20px 55px rgba(24,32,65,.18);display:flex;align-items:center;gap:10px;padding:8px 10px;z-index:3}
+.se-studio-brand{display:flex;align-items:center;gap:9px;font-weight:900;white-space:nowrap}.se-studio-brand i{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,#6354da,#8a70ff);color:#fff;font-style:normal}.se-studio-brand small{display:block;color:#7b8497;font-size:10px;letter-spacing:.12em}.se-studio-sep{width:1px;height:30px;background:#e6e9f1}.se-studio-top button,.se-studio-top select{pointer-events:auto;min-height:38px;border:1px solid #dfe4ee;background:#fff;color:#252d3f;border-radius:10px;padding:7px 11px;font:inherit;font-weight:700;cursor:pointer}.se-studio-top button:hover{border-color:#7568ed;background:#f6f4ff}.se-studio-top button.primary{background:#6354da;border-color:#6354da;color:#fff}.se-studio-top button.danger{color:#b42318;background:#fff6f5;border-color:#f4c7c2}.se-studio-top button:disabled{opacity:.45;cursor:not-allowed}.se-studio-mode{display:flex;padding:3px;background:#eef1f7;border-radius:12px}.se-studio-mode button{border:0;min-height:32px;background:transparent;padding:5px 12px}.se-studio-mode button.active{background:#fff;color:#5848d7;box-shadow:0 4px 12px rgba(36,42,70,.1)}.se-studio-grow{flex:1}.se-studio-status{font-size:12px;color:#667085;white-space:nowrap}.se-studio-status b{color:#198754}.se-studio-panel{pointer-events:auto;position:fixed;right:16px;top:82px;bottom:16px;width:var(--se-studio-panel);overflow:auto;border:1px solid rgba(255,255,255,.7);border-radius:18px;background:rgba(250,251,255,.97);backdrop-filter:blur(18px);box-shadow:0 28px 70px rgba(24,32,65,.2);padding:14px;z-index:2;scrollbar-width:thin}.se-studio-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:4px 2px 12px}.se-studio-panel-head h2{font-size:19px;margin:0}.se-studio-panel-head p{font-size:12px;color:#697386;margin:4px 0 0}.se-studio-close{border:1px solid #e1e5ee;background:#fff;width:34px;height:34px;border-radius:10px;cursor:pointer}.se-studio-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;padding:4px;background:#edf0f6;border-radius:12px;margin-bottom:12px}.se-studio-tabs button{border:0;background:transparent;padding:8px 5px;border-radius:9px;font-weight:800;color:#667085;cursor:pointer}.se-studio-tabs button.active{background:#fff;color:#5848d7;box-shadow:0 3px 10px rgba(29,37,61,.1)}.se-studio-card{background:#fff;border:1px solid #e4e8f0;border-radius:14px;padding:13px;margin:0 0 10px}.se-studio-card h3{font-size:13px;margin:0 0 11px;color:#323a4d;text-transform:uppercase;letter-spacing:.06em}.se-studio-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.se-studio-field{display:flex;flex-direction:column;gap:5px;margin-bottom:9px}.se-studio-field.wide{grid-column:1/-1}.se-studio-field label{font-size:11px;color:#667085;font-weight:800}.se-studio-field input,.se-studio-field textarea,.se-studio-field select{width:100%;border:1px solid #dfe4ed;border-radius:9px;background:#fbfcff;color:#20283a;padding:9px;font:inherit;font-size:13px;outline:none}.se-studio-field textarea{min-height:78px;resize:vertical}.se-studio-field input:focus,.se-studio-field textarea:focus,.se-studio-field select:focus{border-color:#7768ef;box-shadow:0 0 0 3px rgba(119,104,239,.12)}.se-studio-field input[type=color]{height:40px;padding:4px}.se-studio-actions{display:flex;flex-wrap:wrap;gap:7px}.se-studio-actions button,.se-studio-list button{border:1px solid #dfe4ed;background:#fff;color:#30384b;border-radius:9px;padding:8px 10px;font-weight:750;cursor:pointer}.se-studio-actions button.primary{background:#6354da;color:#fff;border-color:#6354da}.se-studio-actions button.danger{color:#b42318;background:#fff5f4;border-color:#f2c5c0}.se-studio-tip{font-size:12px;line-height:1.5;color:#667085;padding:11px;border-radius:11px;background:#f6f7fb}.se-studio-selected-label{padding:9px;border-radius:10px;background:#f3f1ff;color:#4e42bf;font-size:12px;font-weight:800;word-break:break-all}.se-studio-list{display:grid;gap:7px}.se-studio-list-item{display:flex;align-items:center;gap:8px;padding:8px;border:1px solid #e5e8ef;background:#fff;border-radius:10px}.se-studio-list-item span{min-width:0;flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.se-studio-list-item button{padding:5px 8px;font-size:11px}.se-studio-empty{font-size:12px;color:#7a8497;text-align:center;padding:14px}.se-studio-breakpoints{display:flex;gap:4px}.se-studio-breakpoints button.active{background:#eae7ff;color:#5546ce;border-color:#bbb3ff}.se-studio-root[data-mode="edit"]~* [data-se-editable="true"]{cursor:crosshair!important}.se-studio-editing [data-se-editable="true"]:hover{outline:2px dashed #7768ef!important;outline-offset:3px}.se-studio-editing [data-se-selected="true"]{outline:3px solid #6354da!important;outline-offset:4px;box-shadow:0 0 0 7px rgba(99,84,218,.14)!important}.se-studio-editing{padding-top:82px!important;padding-right:calc(var(--se-studio-panel) + 30px)!important;transition:padding .22s ease}.se-studio-preview-mobile{max-width:390px!important;margin-left:auto!important;margin-right:calc(var(--se-studio-panel) + 46px)!important;box-shadow:0 0 0 1px #d8ddea,0 25px 80px rgba(27,35,65,.18);min-height:100vh}.se-studio-preview-tablet{max-width:768px!important;margin-left:auto!important;margin-right:calc(var(--se-studio-panel) + 46px)!important;box-shadow:0 0 0 1px #d8ddea,0 25px 80px rgba(27,35,65,.18);min-height:100vh}.se-studio-hidden-preview{opacity:.22!important;filter:grayscale(1);position:relative!important}.se-studio-hidden-preview:after{content:'Hidden after publish';position:absolute;inset:0;display:grid;place-items:center;background:rgba(180,35,24,.12);color:#b42318;font-weight:900;pointer-events:none}.se-studio-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:5;background:#172033;color:#fff;border-radius:12px;padding:11px 16px;box-shadow:0 15px 40px rgba(0,0,0,.2);font-size:13px;font-weight:750;pointer-events:none}
+:root[data-theme="dark"] .se-studio-top,:root[data-theme="dark"] .se-studio-panel{background:rgba(13,20,35,.96);border-color:#2c3850;color:#edf2ff}.se-studio-root.dark .se-studio-top,.se-studio-root.dark .se-studio-panel{background:rgba(13,20,35,.96);border-color:#2c3850;color:#edf2ff}:root[data-theme="dark"] .se-studio-card{background:#111b2e;border-color:#2a3851}:root[data-theme="dark"] .se-studio-card h3{color:#e6ecf8}:root[data-theme="dark"] .se-studio-top button,:root[data-theme="dark"] .se-studio-top select,:root[data-theme="dark"] .se-studio-field input,:root[data-theme="dark"] .se-studio-field textarea,:root[data-theme="dark"] .se-studio-field select,:root[data-theme="dark"] .se-studio-list-item,:root[data-theme="dark"] .se-studio-actions button{background:#0b1425;color:#e7edf8;border-color:#30405c}:root[data-theme="dark"] .se-studio-tabs,:root[data-theme="dark"] .se-studio-mode{background:#08101f}:root[data-theme="dark"] .se-studio-tabs button.active,:root[data-theme="dark"] .se-studio-mode button.active{background:#18243a;color:#c8c1ff}:root[data-theme="dark"] .se-studio-tip{background:#0b1425;color:#9eacc2}:root[data-theme="dark"] .se-studio-selected-label{background:#211f43;color:#c8c1ff}
+@media(max-width:900px){:root{--se-studio-panel:min(360px,calc(100vw - 20px))}.se-studio-top{left:8px;right:8px;top:7px;height:auto;min-height:54px;flex-wrap:wrap}.se-studio-brand small,.se-studio-sep,.se-studio-status{display:none}.se-studio-grow{display:none}.se-studio-panel{right:8px;left:8px;top:112px;width:auto;bottom:8px}.se-studio-editing{padding-top:115px!important;padding-right:0!important}.se-studio-preview-mobile,.se-studio-preview-tablet{margin:0 auto!important}.se-studio-top button,.se-studio-top select{padding:6px 8px}.se-studio-mode button{padding:4px 8px}}
+@media(max-width:520px){.se-studio-top{gap:5px}.se-studio-brand span{display:none}.se-studio-breakpoints{display:none}.se-studio-panel{top:106px}.se-studio-grid{grid-template-columns:1fr}.se-studio-editing{padding-top:108px!important}.se-studio-top button{font-size:12px}.se-studio-mode button{font-size:11px}}
 
-.mobile-topbar{
- position:sticky!important;
- top:0;
- z-index:9999!important;
- backdrop-filter:blur(16px);
-}
+/* Visual Studio v2 responsive builder additions */
+.se-studio-device-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;padding:4px;background:#edf0f6;border-radius:11px;margin:0 0 10px}.se-studio-device-tabs button{border:0;border-radius:8px;padding:7px 5px;background:transparent;color:#667085;font-size:11px;font-weight:850;cursor:pointer}.se-studio-device-tabs button.active{background:#fff;color:#5848d7;box-shadow:0 3px 10px rgba(29,37,61,.1)}.se-studio-device-note{font-size:11px;color:#667085;margin:-3px 0 10px}.se-studio-move-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;align-items:center}.se-studio-move-grid button{min-height:36px;border:1px solid #dfe4ed;background:#fff;border-radius:9px;font-weight:900;cursor:pointer}.se-studio-move-grid .blank{visibility:hidden}.se-studio-upload{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.se-studio-upload input{position:absolute;opacity:0;pointer-events:none}.se-studio-upload label{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:8px 11px;border-radius:9px;background:#f1efff;color:#5546ce;border:1px solid #d5cffd;font-size:12px;font-weight:850;cursor:pointer}.se-studio-upload small{color:#738096;font-size:10px}.se-studio-lock-note{padding:10px;border-radius:10px;background:#fff4dd;color:#855900;font-size:11px;line-height:1.45}.se-studio-inline-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px}.se-studio-inline-actions button{border:1px solid #dfe4ed;background:#fff;border-radius:9px;padding:8px;font-weight:800;cursor:pointer}.se-studio-dragging{cursor:grabbing!important;user-select:none!important}.se-studio-dragging [data-se-selected=true]{outline-color:#16a394!important}.se-studio-scope-badge{display:inline-flex;padding:4px 7px;border-radius:999px;background:#ebe8ff;color:#5848d7;font-size:10px;font-weight:900;text-transform:uppercase}.se-studio-panel .se-studio-grid button{border:1px solid #dfe4ed;background:#fff;border-radius:9px;padding:8px;font-weight:800;cursor:pointer}:root[data-theme=dark] .se-studio-device-tabs{background:#08101f}:root[data-theme=dark] .se-studio-device-tabs button.active,:root[data-theme=dark] .se-studio-move-grid button,:root[data-theme=dark] .se-studio-inline-actions button,:root[data-theme=dark] .se-studio-panel .se-studio-grid button{background:#18243a;color:#eaf0ff;border-color:#30405c}:root[data-theme=dark] .se-studio-upload label{background:#211f43;color:#c8c1ff;border-color:#454077}:root[data-theme=dark] .se-studio-lock-note{background:#2b2113;color:#ffd89b}
 
-.mobile-topbar-inner{
- display:flex!important;
- align-items:center!important;
- gap:10px!important;
- position:relative!important;
-}
-
-.mobile-menu-btn{
- width:44px!important;
- height:44px!important;
- border-radius:14px!important;
- display:flex!important;
- align-items:center!important;
- justify-content:center!important;
- font-size:24px!important;
- z-index:10001!important;
- background:linear-gradient(135deg,#2563eb,#7c3aed)!important;
- color:white!important;
- border:0!important;
- box-shadow:0 8px 24px rgba(37,99,235,.35)!important;
-}
-
-.mobile-sidebar{
- position:fixed!important;
- top:0!important;
- left:-100%!important;
- width:290px!important;
- height:100vh!important;
- z-index:10000!important;
- transition:.35s ease!important;
- overflow-y:auto!important;
- background:linear-gradient(180deg,#ffffff,#f1f5f9)!important;
- box-shadow:20px 0 50px rgba(0,0,0,.25)!important;
-}
-
-.mobile-sidebar.open{
- left:0!important;
-}
-
-.mobile-sidebar-close{
- position:absolute!important;
- right:15px!important;
- top:15px!important;
- width:38px!important;
- height:38px!important;
- border-radius:12px!important;
-}
-
-[data-theme="dark"] .mobile-sidebar{
- background:linear-gradient(180deg,#0f172a,#020617)!important;
- color:#fff!important;
-}
-
-.seller-header,.dashboard-header{
- border-radius:18px!important;
- padding:16px!important;
- box-shadow:0 12px 30px rgba(0,0,0,.12)!important;
-}
-
-}
-
-@media(max-width:420px){
-.mobile-sidebar{
- width:85vw!important;
-}
-
-.mobile-topbar-inner{
- padding:8px 10px!important;
-}
-}
 </style>
+<script id="saleearn-visual-website-studio-v2-script">
+/* Sale Earn Visual Website Studio v2 — responsive, movable, image-aware admin builder. */
+(function(){
+ const VERSION=4,ROOT='seWebsiteStudio',RUNTIME='seWebsiteStudioRuntime';
+ const EDITABLE='h1,h2,h3,h4,p,small,label,span,strong,b,li,summary,figcaption,td,th,input,textarea,select,button,.btn,a,.logo,.brand,img,.hero,.hero-art,.hero-grid,.section,.container,.card,.category-card,.faq,.topbar,.footer,.account-panel,.dash-card,.admin-card,.plans,.grid,.market-tools';
+ let open=false,mode='test',tab='design',viewport='desktop',selected=null,selectedKey='',draft=null,undo=[],redo=[],applying=false,drag=null,clipboard=null;
+ const BASE=new WeakMap(),DEVICES=['desktop','tablet','mobile'];
+ const clone=x=>JSON.parse(JSON.stringify(x)),wait=ms=>new Promise(r=>setTimeout(r,ms));
+ const TEMPLATES={
+  aurora:{name:'Aurora',swatches:['#f8f7ff','#ddd7ff','#5e52d9'],light:{page:'#f8f7ff',card:'#ffffff',text:'#191c31',muted:'#6e7489',line:'#e2def4',shadow:20},dark:{page:'#090b18',card:'#15182a',text:'#f2f2ff',muted:'#a7abc1',line:'#303451',shadow:30},gradients:{light:'radial-gradient(circle at 10% 8%,rgba(112,91,235,.18),transparent 28%),radial-gradient(circle at 92% 16%,rgba(33,190,171,.10),transparent 24%),#f8f7ff',dark:'radial-gradient(circle at 10% 8%,rgba(112,91,235,.22),transparent 30%),radial-gradient(circle at 92% 16%,rgba(33,190,171,.10),transparent 25%),#090b18'}},
+  ocean:{name:'Ocean',swatches:['#f3f9ff','#bfe8ff','#1769aa'],light:{page:'#f3f9ff',card:'#ffffff',text:'#10283d',muted:'#61788d',line:'#d8e8f3',shadow:18},dark:{page:'#06131e',card:'#0d2232',text:'#eaf7ff',muted:'#9bb4c6',line:'#23445b',shadow:30},gradients:{light:'radial-gradient(circle at 85% 6%,rgba(35,166,213,.18),transparent 30%),linear-gradient(145deg,#f3f9ff,#edf7fb)',dark:'radial-gradient(circle at 85% 6%,rgba(35,166,213,.17),transparent 32%),linear-gradient(145deg,#06131e,#0a1b29)'}},
+  sunset:{name:'Sunset',swatches:['#fff8f3','#ffd7bd','#d96b45'],light:{page:'#fff8f3',card:'#ffffff',text:'#352019',muted:'#826e65',line:'#f0ded3',shadow:20},dark:{page:'#180e0c',card:'#281714',text:'#fff3ed',muted:'#c4aaa0',line:'#503028',shadow:31},gradients:{light:'radial-gradient(circle at 85% 8%,rgba(255,133,93,.22),transparent 30%),radial-gradient(circle at 10% 25%,rgba(255,199,94,.15),transparent 24%),#fff8f3',dark:'radial-gradient(circle at 85% 8%,rgba(255,102,76,.16),transparent 32%),linear-gradient(145deg,#180e0c,#21110f)'}},
+  emerald:{name:'Emerald',swatches:['#f2fbf7','#bcebd6','#16805f'],light:{page:'#f2fbf7',card:'#ffffff',text:'#12332a',muted:'#627c73',line:'#d5e9e1',shadow:18},dark:{page:'#071511',card:'#0e251e',text:'#ebfff7',muted:'#9abbb0',line:'#275044',shadow:30},gradients:{light:'radial-gradient(circle at 12% 8%,rgba(35,181,133,.16),transparent 30%),linear-gradient(145deg,#f2fbf7,#f7fffb)',dark:'radial-gradient(circle at 12% 8%,rgba(35,181,133,.15),transparent 32%),linear-gradient(145deg,#071511,#0b1d17)'}},
+  mono:{name:'Mono',swatches:['#f6f7f9','#d9dde3','#343a45'],light:{page:'#f6f7f9',card:'#ffffff',text:'#171a20',muted:'#69717d',line:'#dde1e7',shadow:16},dark:{page:'#0d0f13',card:'#181b21',text:'#f5f6f8',muted:'#a6acb6',line:'#343943',shadow:28},gradients:{light:'linear-gradient(145deg,#fafbfc,#f1f3f6)',dark:'linear-gradient(145deg,#0d0f13,#15181e)'}}
+ };
+ const base=()=>({version:VERSION,light:{page:'#f7f8fc',card:'#ffffff',text:'#172033',muted:'#6d7890',line:'#e2e7f0',shadow:18},dark:{page:'#070b16',card:'#101827',text:'#edf3ff',muted:'#9ba9c0',line:'#283852',shadow:28},global:{font:'Inter,Arial,sans-serif',radius:16,buttonRadius:10,pageWidth:1180,spacing:1},template:'aurora',autoTheme:true,gradients:{...TEMPLATES.aurora.gradients},edits:{},history:[],updatedAt:null,updatedBy:null});
+ function config(){S.platformConfig=S.platformConfig||{};const v=S.platformConfig.visualStudio||{},b=base();return {...b,...v,version:VERSION,light:{...b.light,...(v.light||{})},dark:{...b.dark,...(v.dark||{})},global:{...b.global,...(v.global||{})},edits:v.edits||{},history:v.history||[]}}
+ function admin(){try{return !!isAdmin()}catch{return false}}
+ function routeKey(){return (location.hash.replace(/^#/,'')||'home').split('/').slice(0,2).join('/').replace(/[^a-z0-9/_-]/gi,'_')}
+ function isProductImage(el){return el?.tagName==='IMG'&&!!el.closest('.product-card,.detail-image,.thumb,.admin-product-preview,[data-product-id],[data-product]')}
+ function eligible(el){return !!(el&&el.nodeType===1&&!el.closest('#'+ROOT+',script,style,.toast,.modal-bg')&&!isProductImage(el))}
+ function classKey(el){return [...el.classList].filter(x=>!x.startsWith('se-studio')).slice(0,2).sort().join('.')}
+ function fingerprint(el){if(!eligible(el))return'';if(el.dataset.seStudioKey)return el.dataset.seStudioKey;const tag=el.tagName.toLowerCase(),cls=classKey(el),all=[...document.querySelectorAll(EDITABLE)].filter(eligible).filter(x=>x.tagName===el.tagName&&classKey(x)===cls),key=`${routeKey()}|${tag}${cls?'.'+cls:''}|${Math.max(0,all.indexOf(el))}`;el.dataset.seStudioKey=key;return key}
+ function scope(){return viewport}
+ function activeDevice(){if(open)return viewport;return innerWidth<=600?'mobile':innerWidth<=900?'tablet':'desktop'}
+ function normalizeEdit(e){e.desktop=e.desktop||{};e.tablet=e.tablet||{};e.mobile=e.mobile||{};e.hide=e.hide||{};e.content=e.content||{};e.orderByDevice=e.orderByDevice||{};for(const d of DEVICES)e.content[d]=e.content[d]||{};return e}
+ function editFor(key){return normalizeEdit(draft.edits[key]||(draft.edits[key]={desktop:{},tablet:{},mobile:{},hide:{},content:{},orderByDevice:{}}))}
+ function edit(){return selectedKey?editFor(selectedKey):null}
+ function remember(el){let b=BASE.get(el);if(!b){b={text:el.textContent,src:el.tagName==='IMG'?el.getAttribute('src'):null,href:el.tagName==='A'?el.getAttribute('href'):null,order:el.parentElement?[...el.parentElement.children].indexOf(el):0};BASE.set(el,b)}return b}
+ function own(o,k){return !!o&&Object.prototype.hasOwnProperty.call(o,k)}
+ function contentValue(e,d,k,fallback){const c=e.content?.[d];return own(c,k)?c[k]:e[k]!=null?e[k]:fallback}
+ function snap(){undo.push(clone(draft));if(undo.length>50)undo.shift();redo=[]}
+ function escAttr(x){return String(x).replace(/\\/g,'\\\\').replace(/"/g,'\\"')}
+ function kebab(x){return x.replace(/[A-Z]/g,m=>'-'+m.toLowerCase())}
+ function rule(key,style,important=true){const body=Object.entries(style||{}).filter(([,v])=>v!==''&&v!=null).map(([k,v])=>`${kebab(k)}:${v}${important?'!important':''}`).join(';');return body?`[data-se-studio-key="${escAttr(key)}"]{${body}}`:''}
+ function runtimeCss(c){const l=c.light,d=c.dark,g=c.global,gr=c.gradients||TEMPLATES.aurora.gradients;let css=`:root[data-theme=light]{--bg:${l.page}!important;--card:${l.card}!important;--text:${l.text}!important;--muted:${l.muted}!important;--line:${l.line}!important;--radius:${g.radius}px!important;--shadow:0 12px ${l.shadow}px rgba(25,35,70,.11)!important}:root[data-theme=dark]{--bg:${d.page}!important;--card:${d.card}!important;--text:${d.text}!important;--muted:${d.muted}!important;--line:${d.line}!important;--radius:${g.radius}px!important;--shadow:0 16px ${d.shadow}px rgba(0,0,0,.34)!important}body{font-family:${g.font}!important}.container{max-width:${g.pageWidth}px!important}.btn,button{border-radius:${g.buttonRadius}px}:root[data-theme=light] body:not(.se-admin){background:${gr.light}!important;background-attachment:fixed!important}:root[data-theme=dark] body:not(.se-admin){background:${gr.dark}!important;background-attachment:fixed!important}`;let desk='',tablet='',mobile='',previewTablet='',previewMobile='';for(const [key,e] of Object.entries(c.edits||{})){const dRule=rule(key,e.desktop),tRule=rule(key,e.tablet),mRule=rule(key,e.mobile);desk+=dRule;tablet+=tRule;mobile+=mRule;previewTablet+=tRule.replace('[data-se-studio-key','body.se-studio-preview-tablet [data-se-studio-key');previewMobile+=mRule.replace('[data-se-studio-key','body.se-studio-preview-mobile [data-se-studio-key');if(e.hide?.desktop)desk+=rule(key,{display:'none'});if(e.hide?.tablet){const r=rule(key,{display:'none'});tablet+=r;previewTablet+=r.replace('[data-se-studio-key','body.se-studio-preview-tablet [data-se-studio-key')}if(e.hide?.mobile){const r=rule(key,{display:'none'});mobile+=r;previewMobile+=r.replace('[data-se-studio-key','body.se-studio-preview-mobile [data-se-studio-key')}}return css+`@media(min-width:901px){${desk}}@media(min-width:601px) and (max-width:900px){${tablet}}@media(max-width:600px){${mobile}}${previewTablet}${previewMobile}`}
+
+ function apply(c=draft||config()){
+  if(applying)return;applying=true;const device=activeDevice(),els=[...document.querySelectorAll(EDITABLE)].filter(eligible);els.forEach(el=>{el.dataset.seEditable='true';fingerprint(el);remember(el)});
+  for(const el of els){const key=fingerprint(el),raw=c.edits[key];if(!raw)continue;const e=normalizeEdit(raw),b=remember(el);if(![...el.children].length&&el.tagName!=='IMG'){const text=contentValue(e,device,'text',b.text);if(text!=null&&el.textContent!==String(text))el.textContent=String(text)}if(el.tagName==='IMG'&&!isProductImage(el)){const image=contentValue(e,device,'src',b.src);if(image&&el.getAttribute('src')!==image)el.setAttribute('src',image)}if(el.tagName==='A'){const href=contentValue(e,device,'href',b.href);if(href==null)el.removeAttribute('href');else if(el.getAttribute('href')!==href)el.setAttribute('href',href)}}
+  const parents=new Set(els.map(x=>x.parentElement).filter(Boolean));for(const parent of parents){const kids=[...parent.children];if(!kids.some(x=>{const e=c.edits[fingerprint(x)];return e&&(Number.isInteger(e.orderByDevice?.[device])||Number.isInteger(e.order))}))continue;const sorted=[...kids].sort((a,b)=>{const ea=c.edits[fingerprint(a)],eb=c.edits[fingerprint(b)],oa=ea?.orderByDevice?.[device]??ea?.order??remember(a).order,ob=eb?.orderByDevice?.[device]??eb?.order??remember(b).order;return oa-ob});if(sorted.some((x,i)=>x!==kids[i]))for(const x of sorted)parent.appendChild(x)}
+  let st=document.getElementById(RUNTIME);if(!st){st=document.createElement('style');st.id=RUNTIME;document.head.appendChild(st)}const css=runtimeCss(c);if(st.textContent!==css)st.textContent=css;
+  document.querySelectorAll('[data-se-selected]').forEach(x=>x.removeAttribute('data-se-selected'));if(selectedKey){selected=document.querySelector(`[data-se-studio-key="${CSS.escape(selectedKey)}"]`);selected?.setAttribute('data-se-selected','true')}applying=false
+ }
+ function toastMsg(t){let x=document.querySelector('.se-studio-toast');x?.remove();x=document.createElement('div');x.className='se-studio-toast';x.textContent=t;document.getElementById(ROOT)?.appendChild(x);setTimeout(()=>x.remove(),2400)}
+ function injectLaunch(){if(!admin())return;const top=document.querySelector('.admin-top');if(!top||top.querySelector('.se-studio-launch'))return;const b=document.createElement('button');b.className='se-studio-launch';b.textContent='✦ Edit Website';b.title='Open responsive visual website builder';b.onclick=()=>window.websiteStudioOpen();(top.querySelector('.admin-top-actions,.as-top-actions')||top.lastElementChild||top).prepend(b)}
+ function field(label,id,value,type='text',wide=''){return `<div class="se-studio-field ${wide}"><label>${label}</label><input data-studio-field="${id}" type="${type}" value="${String(value??'').replace(/"/g,'&quot;')}"></div>`}
+ function selectField(label,id,value,opts,wide=''){return `<div class="se-studio-field ${wide}"><label>${label}</label><select data-studio-field="${id}">${opts.map(x=>`<option value="${x}" ${String(value)===String(x)?'selected':''}>${x||'Auto'}</option>`).join('')}</select></div>`}
+ function designPanel(){const c=draft,t=document.documentElement.dataset.theme==='dark'?'dark':'light',x=c[t];return `<div class="se-studio-card"><h3>Responsive templates</h3><div class="se-template-grid">${Object.entries(TEMPLATES).map(([id,z])=>`<button data-template="${id}" class="se-template ${c.template===id?'active':''}"><span>${z.swatches.map(v=>`<i style="background:${v}"></i>`).join('')}</span><b>${z.name}</b><small>Auto Light + Dark</small></button>`).join('')}</div><div class="se-auto-mode"><span>◐ Automatic mode grading</span><b>ON</b></div></div><div class="se-studio-card"><h3>${t} mode lighting</h3><div class="se-studio-field"><label>Preview theme</label><select data-studio-theme><option value="light" ${t==='light'?'selected':''}>Light mode</option><option value="dark" ${t==='dark'?'selected':''}>Dark mode</option></select></div><div class="se-studio-grid">${field('Page background','theme.page',x.page,'color')}${field('Cards','theme.card',x.card,'color')}${field('Text','theme.text',x.text,'color')}${field('Muted text','theme.muted',x.muted,'color')}${field('Borders','theme.line',x.line,'color')}${field('Shadow depth','theme.shadow',x.shadow,'range')}</div></div><div class="se-studio-card"><h3>Global layout</h3><div class="se-studio-grid">${field('Card radius','global.radius',c.global.radius,'number')}${field('Button radius','global.buttonRadius',c.global.buttonRadius,'number')}${field('Page width','global.pageWidth',c.global.pageWidth,'number')}${field('Spacing','global.spacing',c.global.spacing,'range')}${selectField('Font family','global.font',c.global.font,['Inter,Arial,sans-serif','Arial,sans-serif','Georgia,serif','Verdana,sans-serif'],'wide')}</div></div><div class="se-studio-tip">Template automatically Light/Dark mode ke saath grade hota hai. Original website button colors preserve rahenge.</div>`}
+
+ function elementPanel(){if(!selected)return `<div class="se-studio-card"><h3>Select an item</h3><div class="se-studio-empty">Edit mode mein kisi text, section, button, link ya non-product image par click karein.</div></div>`;const e=edit(),s=e[scope()],d=e.content[scope()],b=remember(selected),leaf=![...selected.children].length,text=leaf&&selected.tagName!=='IMG'?contentValue(e,scope(),'text',b.text):'';return `<div class="se-studio-card"><h3>Selected item <span class="se-studio-scope-badge">${scope()}</span></h3><div class="se-studio-selected-label">${selected.tagName.toLowerCase()} · ${selectedKey}</div><div class="se-studio-device-note"><b>Device-isolated editing:</b> ${scope()} ka text, image, link, position aur layout doosre devices par show nahi hoga.</div><div class="se-studio-device-tabs">${DEVICES.map(x=>`<button data-device="${x}" class="${scope()===x?'active':''}">${x}</button>`).join('')}</div></div><div class="se-studio-card"><h3>${scope()} content & image</h3>${selected.tagName==='IMG'?field('Image URL','content.src',contentValue(e,scope(),'src',b.src)||''):selected.tagName==='A'?field('Link URL','content.href',contentValue(e,scope(),'href',b.href)||''):''}${text!==''?`<div class="se-studio-field"><label>Text only for ${scope()}</label><textarea data-studio-field="content.text">${String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;')}</textarea></div>`:''}<div class="se-studio-upload"><input id="seStudioImageUpload" type="file" accept="image/png,image/jpeg,image/webp,image/gif"><label for="seStudioImageUpload">Upload ${scope()} image / PNG</label><small>Only ${scope()} · non-product image · max 3 MB</small></div>${isProductImage(selected)?'<div class="se-studio-lock-note">Product images are shared business data and remain locked here. Use Admin → Products.</div>':''}</div><div class="se-studio-card"><h3>${scope()} block order · no overlap</h3><div class="se-block-order"><button data-flow="-1">↑ Move block above</button><button data-flow="1">↓ Move block below</button></div><div class="se-studio-tip">Order sirf ${scope()} ke liye save hoga. Desktop/Tablet/Mobile order independent hai.</div></div><div class="se-studio-card"><h3>${scope()} move & position</h3><div class="se-studio-move-grid"><span class="blank"></span><button data-nudge="0,-10">↑ 10</button><span class="blank"></span><button data-nudge="-10,0">← 10</button><button data-nudge="0,0">Reset</button><button data-nudge="10,0">10 →</button><span class="blank"></span><button data-nudge="0,10">↓ 10</button><span class="blank"></span></div><div class="se-studio-inline-actions" style="margin-top:8px"><button data-order="-1">Move before</button><button data-order="1">Move after</button></div><div class="se-studio-tip" style="margin-top:8px">Mouse/touch drag bhi current device ke liye separately save hota hai.</div></div><div class="se-studio-card"><h3>${scope()} size & layout</h3><div class="se-studio-grid">${field('X px','style.x',parseFloat(s.x)||0,'number')}${field('Y px','style.y',parseFloat(s.y)||0,'number')}${field('Width','style.width',s.width||'auto')}${field('Min height','style.minHeight',s.minHeight||'auto')}${field('Padding px','style.padding',parseFloat(s.padding)||0,'number')}${field('Margin px','style.margin',parseFloat(s.margin)||0,'number')}${field('Gap px','style.gap',parseFloat(s.gap)||0,'number')}${field('Z layer','style.zIndex',s.zIndex||'auto')}${selectField('Display','style.display',s.display||'',['','block','inline-block','flex','grid','inline-flex'],'wide')}${selectField('Columns','style.gridTemplateColumns',s.gridTemplateColumns||'',['','1fr','repeat(2,1fr)','repeat(3,1fr)','repeat(4,1fr)'],'wide')}</div></div><div class="se-studio-card"><h3>${scope()} color, text & effects</h3><div class="se-studio-grid">${field('Text color','style.color',s.color||'#172033','color')}${field('Background','style.backgroundColor',s.backgroundColor||'#ffffff','color')}${field('Border color','style.borderColor',s.borderColor||'#e2e7f0','color')}${field('Border px','style.borderWidth',parseFloat(s.borderWidth)||0,'number')}${field('Font size px','style.fontSize',parseFloat(s.fontSize)||16,'number')}${field('Weight','style.fontWeight',s.fontWeight||600,'number')}${field('Radius px','style.borderRadius',parseFloat(s.borderRadius)||0,'number')}${field('Opacity %','style.opacity',Math.round((Number(s.opacity)||1)*100),'number')}${selectField('Text align','style.textAlign',s.textAlign||'',['','left','center','right'],'wide')}${selectField('Shadow','style.boxShadow',s.boxShadow||'',['','0 8px 24px rgba(20,30,60,.12)','0 18px 45px rgba(20,30,60,.20)','none'],'wide')}</div></div><div class="se-studio-actions"><button data-copy-style>Copy ${scope()} style</button><button data-paste-style ${!clipboard?'disabled':''}>Paste to ${scope()}</button><button class="danger" data-hide-device>${e.hide?.[scope()]?'Show on '+scope():'Hide on '+scope()}</button><button data-reset-device>Reset ${scope()} only</button><button data-reset-all>Reset all devices</button></div>`}
+
+ function pagesPanel(){const hidden=[];for(const [k,e] of Object.entries(draft.edits))for(const d of ['desktop','tablet','mobile'])if(e.hide?.[d])hidden.push([k,d]);return `<div class="se-studio-card"><h3>Quick navigation</h3><div class="se-studio-grid">${['home','marketplace','account','contact','dashboard','admin'].map(x=>`<button data-route="${x}">${x}</button>`).join('')}</div></div><div class="se-studio-card"><h3>Hidden by device (${hidden.length})</h3><div class="se-studio-list">${hidden.map(([k,d])=>`<div class="se-studio-list-item"><span>${k} · ${d}</span><button data-restore="${k}" data-restore-device="${d}">Restore</button></div>`).join('')||'<div class="se-studio-empty">Nothing hidden.</div>'}</div></div><div class="se-studio-card"><h3>Admin data controls</h3><div class="se-studio-lock-note">Product images, private files, delivery and finance remain in audited admin tools—not in the visual editor.</div><div class="se-studio-actions" style="margin-top:9px">${[['users','Users & deletion'],['products','Products & files'],['orders','Orders & delivery'],['security','Security & access'],['audit','Audit log']].map(([r,l])=>`<button data-admin="${r}">${l}</button>`).join('')}</div></div>`}
+ function renderChrome(){let root=document.getElementById(ROOT);if(!open){root?.remove();document.body.classList.remove('se-studio-editing','se-studio-preview-mobile','se-studio-preview-tablet');return}if(!root){root=document.createElement('div');root.id=ROOT;root.className='se-studio-root';document.body.prepend(root)}root.dataset.mode=mode;root.innerHTML=`<div class="se-studio-top"><div class="se-studio-brand"><i>SE</i><span>Website Studio<small>DEVICE-ISOLATED BUILDER V3</small></span></div><div class="se-studio-sep"></div><div class="se-studio-mode"><button data-mode="test" class="${mode==='test'?'active':''}">Test</button><button data-mode="edit" class="${mode==='edit'?'active':''}">Edit</button></div><div class="se-studio-breakpoints">${['desktop','tablet','mobile'].map(x=>`<button data-view="${x}" class="${viewport===x?'active':''}">${x}</button>`).join('')}</div><span class="se-studio-status"><b>● Draft</b> · devices isolated</span><div class="se-studio-grow"></div><button data-action="undo" ${!undo.length?'disabled':''}>↶</button><button data-action="redo" ${!redo.length?'disabled':''}>↷</button><button data-action="discard">Discard</button><button data-action="publish" class="primary">Publish</button><button data-action="close">Close</button></div>${mode==='edit'?`<aside class="se-studio-panel"><div class="se-studio-panel-head"><div><h2>Device-isolated visual builder</h2><p>Desktop, Tablet aur Mobile content/layout completely separate</p></div><button class="se-studio-close" data-action="close">×</button></div><div class="se-studio-tabs">${[['design','Design'],['element','Element'],['pages','Pages & Data']].map(([x,l])=>`<button data-tab="${x}" class="${tab===x?'active':''}">${l}</button>`).join('')}</div>${tab==='design'?designPanel():tab==='element'?elementPanel():pagesPanel()}</aside>`:''}`;bind();document.body.classList.toggle('se-studio-editing',mode==='edit');document.body.classList.toggle('se-studio-preview-mobile',viewport==='mobile');document.body.classList.toggle('se-studio-preview-tablet',viewport==='tablet');apply()}
+ function setValue(path,value){snap();const [a,b]=path.split('.');if(a==='theme'){const t=document.documentElement.dataset.theme==='dark'?'dark':'light';draft[t][b]=b==='shadow'?Number(value):value}else if(a==='global')draft.global[b]=['radius','buttonRadius','pageWidth','spacing'].includes(b)?Number(value):value;else if(a==='content'){const e=edit();e.content[scope()][b]=value}else if(a==='style'){const s=edit()[scope()];if(b==='x'||b==='y'){s[b]=Number(value)||0;s.transform=`translate(${s.x||0}px,${s.y||0}px)`}else if(['padding','margin','gap','borderWidth','fontSize','borderRadius'].includes(b))s[b]=`${Math.max(0,Number(value)||0)}px`;else if(b==='opacity')s[b]=Math.max(0,Math.min(1,(Number(value)||0)/100));else s[b]=value;if(b==='borderWidth')s.borderStyle=Number(value)>0?'solid':''}apply()}
+ function nudge(dx,dy){snap();const s=edit()[scope()];if(dx===0&&dy===0){s.x=0;s.y=0}else{s.x=(Number(s.x)||0)+dx;s.y=(Number(s.y)||0)+dy}s.transform=`translate(${s.x}px,${s.y}px)`;apply();renderChrome()}
+ function reorder(dir){if(!selected?.parentElement)return;const parent=selected.parentElement,kids=[...parent.children],i=kids.indexOf(selected),n=Math.max(0,Math.min(kids.length-1,i+dir));if(i===n)return toastMsg(dir<0?'Already first block':'Already last block');snap();for(const k of kids)if(eligible(k))fingerprint(k);const ordered=[...kids];ordered.splice(i,1);ordered.splice(n,0,selected);ordered.forEach((node,index)=>{if(!eligible(node))return;editFor(fingerprint(node)).orderByDevice[scope()]=index});const st=edit()[scope()];st.x=0;st.y=0;delete st.transform;apply();renderChrome();toastMsg(`Block moved for ${scope()} only`)}
+
+ async function upload(file){if(!file)return;if(!['image/png','image/jpeg','image/webp','image/gif'].includes(file.type)||file.size>3*1024*1024)return toastMsg('Use PNG/JPG/WebP/GIF up to 3 MB.');if(isProductImage(selected))return toastMsg('Product images are locked in this editor.');try{toastMsg('Uploading image…');const safe=file.name.replace(/[^a-z0-9._-]/gi,'_'),path=`site-assets/${S.currentUser.id}/${Date.now()}_${safe}`,r=await supabaseClient.storage.from('product-images').upload(path,file,{contentType:file.type,upsert:false});if(r.error)throw r.error;const u=supabaseClient.storage.from('product-images').getPublicUrl(path)?.data?.publicUrl;if(!u)throw Error('Public image URL unavailable');snap();const e=edit();if(selected.tagName==='IMG')e.content[scope()].src=u;else{e[scope()].backgroundImage=`url("${u}")`;e[scope()].backgroundSize='cover';e[scope()].backgroundPosition='center'}apply();renderChrome();toastMsg('Image uploaded')}catch(e){toastMsg('Upload failed: '+e.message)}}
+ function bind(){const root=document.getElementById(ROOT);root.querySelectorAll('[data-template]').forEach(b=>b.onclick=()=>{snap();const t=TEMPLATES[b.dataset.template];draft.template=b.dataset.template;draft.autoTheme=true;draft.light=clone(t.light);draft.dark=clone(t.dark);draft.gradients=clone(t.gradients);apply();renderChrome();toastMsg(t.name+' template applied')});root.querySelectorAll('[data-flow]').forEach(b=>b.onclick=()=>reorder(Number(b.dataset.flow)));root.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;selected=null;selectedKey='';renderChrome()});root.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;renderChrome()});root.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{viewport=b.dataset.view;apply();renderChrome()});root.querySelectorAll('[data-device]').forEach(b=>b.onclick=()=>{viewport=b.dataset.device;apply();renderChrome()});root.querySelectorAll('[data-studio-field]').forEach(i=>i.onchange=()=>{setValue(i.dataset.studioField,i.value);renderChrome()});root.querySelector('[data-studio-theme]')?.addEventListener('change',e=>{document.documentElement.dataset.theme=e.target.value;localStorage.setItem('saleEarnTheme',e.target.value);renderChrome()});root.querySelectorAll('[data-nudge]').forEach(b=>b.onclick=()=>{const [x,y]=b.dataset.nudge.split(',').map(Number);nudge(x,y)});root.querySelectorAll('[data-order]').forEach(b=>b.onclick=()=>reorder(Number(b.dataset.order)));root.querySelector('#seStudioImageUpload')?.addEventListener('change',e=>upload(e.target.files?.[0]));root.querySelector('[data-copy-style]')?.addEventListener('click',()=>{clipboard=clone(edit()[scope()]);toastMsg('Style copied');renderChrome()});root.querySelector('[data-paste-style]')?.addEventListener('click',()=>{if(!clipboard)return;snap();edit()[scope()]=clone(clipboard);apply();renderChrome()});root.querySelector('[data-hide-device]')?.addEventListener('click',()=>{snap();const e=edit();e.hide[scope()]=!e.hide[scope()];apply();renderChrome()});root.querySelector('[data-reset-device]')?.addEventListener('click',()=>{snap();const e=edit();e[scope()]={};e.content[scope()]={};delete e.orderByDevice[scope()];e.hide[scope()]=false;apply();renderChrome();toastMsg(scope()+' edits reset only')});root.querySelector('[data-reset-all]')?.addEventListener('click',()=>{snap();delete draft.edits[selectedKey];apply();renderChrome()});root.querySelectorAll('[data-route]').forEach(b=>b.onclick=()=>{go(b.dataset.route);setTimeout(()=>{apply();renderChrome()},40)});root.querySelectorAll('[data-admin]').forEach(b=>b.onclick=()=>{adminNav(b.dataset.admin);setTimeout(()=>{apply();renderChrome()},40)});root.querySelectorAll('[data-restore]').forEach(b=>b.onclick=()=>{snap();const e=draft.edits[b.dataset.restore];if(e)e.hide[b.dataset.restoreDevice]=false;apply();renderChrome()});root.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>action(b.dataset.action))}
+ async function publish(){if(!admin())return toastMsg('Admin session required');const current=config();draft.updatedAt=new Date().toISOString();draft.updatedBy=S.currentUser?.id||null;draft.history=[{date:draft.updatedAt,adminId:draft.updatedBy,summary:`${Object.keys(draft.edits).length} device-isolated item edits`,previous:{light:current.light,dark:current.dark,global:current.global,edits:current.edits}},...(draft.history||[])].slice(0,20);S.platformConfig.visualStudio=clone(draft);try{adminAudit('Published device-isolated website design','WEBSITE_STUDIO_V3',{items:Object.keys(draft.edits).length})}catch{}save();toastMsg('Saving design…');try{if(typeof ONLINE_READY!=='undefined'&&ONLINE_READY&&typeof ONLINE_LOCAL_DIRTY!=='undefined'&&ONLINE_LOCAL_DIRTY){for(let i=0;i<3&&ONLINE_LOCAL_DIRTY;i++){await pushOnlineState();if(ONLINE_LOCAL_DIRTY)await wait(250)}}toastMsg(typeof ONLINE_LOCAL_DIRTY==='undefined'||!ONLINE_LOCAL_DIRTY?'Website design saved & live':'Design saved locally · cloud pending')}catch{toastMsg('Design saved locally · cloud pending')}undo=[];redo=[];renderChrome()}
+ function action(a){if(a==='close')return close();if(a==='undo'&&undo.length){redo.push(clone(draft));draft=undo.pop();return renderChrome()}if(a==='redo'&&redo.length){undo.push(clone(draft));draft=redo.pop();return renderChrome()}if(a==='discard'){draft=config();undo=[];redo=[];apply();renderChrome();return toastMsg('Draft discarded')}if(a==='publish')publish()}
+ function choose(e){if(!open||mode!=='edit'||e.target.closest('#'+ROOT))return;const el=e.target.closest('[data-se-editable=true]');if(!el)return;e.preventDefault();e.stopPropagation();selected=el;selectedKey=fingerprint(el);tab='element';renderChrome()}
+ function down(e){if(!open||mode!=='edit'||!selected||e.target.closest('#'+ROOT)||!e.target.closest('[data-se-selected=true]'))return;const s=edit()[scope()];snap();drag={id:e.pointerId,x:e.clientX,y:e.clientY,sx:Number(s.x)||0,sy:Number(s.y)||0};document.body.classList.add('se-studio-dragging');selected.setPointerCapture?.(e.pointerId);e.preventDefault()}
+ function move(e){if(!drag||e.pointerId!==drag.id)return;const s=edit()[scope()];s.x=Math.round(drag.sx+e.clientX-drag.x);s.y=Math.round(drag.sy+e.clientY-drag.y);s.transform=`translate(${s.x}px,${s.y}px)`;apply();e.preventDefault()}
+ function up(e){if(!drag||e.pointerId!==drag.id)return;drag=null;document.body.classList.remove('se-studio-dragging');renderChrome()}
+ function close(){open=false;mode='test';selected=null;selectedKey='';document.getElementById(ROOT)?.remove();document.body.classList.remove('se-studio-editing','se-studio-preview-mobile','se-studio-preview-tablet','se-studio-dragging');apply(config())}
+ window.websiteStudioOpen=function(){if(!admin())return toast?.('Admin access required');draft=config();undo=[];redo=[];open=true;mode='test';tab='design';viewport='desktop';go('home');setTimeout(renderChrome,40)};window.websiteStudioClose=close;
+ document.addEventListener('click',choose,true);document.addEventListener('pointerdown',down,true);document.addEventListener('pointermove',move,true);document.addEventListener('pointerup',up,true);window.addEventListener('resize',()=>apply(open?draft:config()));
+ const mo=new MutationObserver(()=>{if(applying)return;injectLaunch();apply(open?draft:config());if(open&&!document.getElementById(ROOT))renderChrome()});mo.observe(document.documentElement,{subtree:true,childList:true});setTimeout(()=>{injectLaunch();apply(config())},80);
+})();
+
+</script>
+<style id="saleearn-admin-control-save-fix">
+#seWebsiteSaveStatus{position:fixed;right:20px;bottom:20px;z-index:100500;max-width:min(430px,calc(100vw - 32px));padding:12px 16px;border-radius:12px;background:#172033;color:#fff;box-shadow:0 18px 50px rgba(13,22,45,.28);font:700 13px/1.45 Inter,Arial,sans-serif;opacity:0;transform:translateY(12px);pointer-events:none;transition:.2s}#seWebsiteSaveStatus.show{opacity:1;transform:none}#seWebsiteSaveStatus[data-state="live"]{background:#087a55}#seWebsiteSaveStatus[data-state="pending"]{background:#9a6700}#seWebsiteSaveStatus[data-state="error"]{background:#b42318}.se-control-save-state{display:inline-flex;margin-left:10px;padding:7px 10px;border-radius:9px;background:var(--soft,#f1efff);color:var(--muted,#667085);font-size:11px;font-weight:800;vertical-align:middle}.se-control-save-state[data-state="live"]{background:#e9f8f1;color:#087a55}.se-control-save-state[data-state="pending"]{background:#fff3d6;color:#8a5d00}.se-control-save-state[data-state="error"]{background:#ffebe9;color:#b42318}@media(max-width:600px){#seWebsiteSaveStatus{right:10px;bottom:82px}.se-control-save-state{display:flex;margin:9px 0 0}}
+
+</style>
+<script id="saleearn-admin-control-save-fix-script">
+/* Sale Earn Website Controls — confirmed save/publish fix */
+(function(){
+ const wait=ms=>new Promise(r=>setTimeout(r,ms));
+ const clone=x=>JSON.parse(JSON.stringify(x));
+ const el=id=>document.getElementById(id),val=id=>String(el(id)?.value??''),checked=id=>!!el(id)?.checked;
+ let busy=false,last={state:'idle',text:''};
+ function show(state,text){
+  last={state,text};let box=document.getElementById('seWebsiteSaveStatus');
+  if(!box){box=document.createElement('div');box.id='seWebsiteSaveStatus';box.setAttribute('role','status');box.setAttribute('aria-live','polite');document.body.appendChild(box)}
+  box.dataset.state=state;box.textContent=text;box.classList.add('show');clearTimeout(show.timer);show.timer=setTimeout(()=>box?.classList.remove('show'),state==='saving'?120000:5000);
+  const inline=document.querySelector('[data-se-control-save-state]');if(inline){inline.dataset.state=state;inline.textContent=text}
+ }
+ function decorate(){
+  const b=document.querySelector('button[onclick*="studioSaveWebsite"]');if(b&&!b.parentElement?.querySelector('[data-se-control-save-state]')){const s=document.createElement('span');s.dataset.seControlSaveState='';s.className='se-control-save-state';s.textContent=last.text||'Changes are not saved until you publish.';b.insertAdjacentElement('afterend',s)}
+ }
+ async function flushCloud(){
+  if(typeof ONLINE_READY==='undefined'||!ONLINE_READY||!S.currentUser)return {live:false,reason:'Cloud is not connected'};
+  if(typeof navigator!=='undefined'&&navigator.onLine===false)return {live:false,reason:'Internet is offline'};
+  if(typeof seStopped!=='undefined'&&seStopped){seStopped=false;seFailures=0;seRetryAt=0}
+  for(let i=0;i<4;i++){
+   while((typeof seWriteBusy!=='undefined'&&seWriteBusy)||(typeof seReadBusy!=='undefined'&&seReadBusy))await wait(120);
+   if(typeof ONLINE_LOCAL_DIRTY!=='undefined'&&!ONLINE_LOCAL_DIRTY)return {live:true};
+   try{await pushOnlineState()}catch(e){return {live:false,reason:e?.message||'Cloud save failed'}}
+   if(typeof ONLINE_LOCAL_DIRTY==='undefined'||!ONLINE_LOCAL_DIRTY)return {live:true};
+   await wait(220*(i+1));
+  }
+  return {live:false,reason:(typeof seStopped!=='undefined'&&seStopped)?'Cloud sync is paused':'Cloud did not confirm the update'};
+ }
+ function addHistory(c,before,reason){c.configHistory=Array.isArray(c.configHistory)?c.configHistory:[];c.configHistory.unshift({version:Date.now(),date:new Date().toISOString(),adminId:S.currentUser?.id||'ADMIN',reason,config:{...before,configHistory:[]}});c.configHistory=c.configHistory.slice(0,30)}
+ async function persist(reason,mutate){
+  if(busy)return show('saving','A save is already running…');
+  if(typeof adminOnly==='function'&&!adminOnly())return;
+  busy=true;const button=document.querySelector('button[onclick*="studioSaveWebsite"]');if(button){button.disabled=true;button.dataset.oldText=button.textContent;button.textContent='Saving…'}
+  try{
+   const c=ensurePlatformConfig(),before=clone(c);mutate(c);addHistory(c,before,reason);S.platformConfig=c;
+   try{adminAudit(reason,'PLATFORM_CONFIG',{source:'Website Control',confirmedSave:true})}catch{}
+   show('saving','Saving locally and publishing online…');save();
+   const result=await flushCloud();
+   if(result.live){show('live','✓ Saved & live on the website');try{toast('Website controls saved & live')}catch{}}
+   else{show('pending','✓ Saved on this device · Online sync pending: '+result.reason);try{toast('Saved locally. Online sync is pending.')}catch{}}
+   try{render()}catch{}setTimeout(decorate,40);
+  }catch(e){console.error('Website Control save failed',e);show('error','Save failed: '+(e?.message||'Unknown error'));try{toast('Save failed. Your previous settings were kept.')}catch{}}
+  finally{busy=false;if(button?.isConnected){button.disabled=false;button.textContent=button.dataset.oldText||'Save & publish website'}}
+ }
+ window.studioSaveWebsite=async function(){
+  const name=val('acBrandName').trim(),primary=val('acPrimary').trim(),secondary=val('acSecondary').trim(),image=val('acHeroImage').trim();
+  if(!name||name.length>80)return show('error','Website name must be 1–80 characters.');
+  if(!/^#[0-9a-f]{6}$/i.test(primary)||!/^#[0-9a-f]{6}$/i.test(secondary))return show('error','Use six-digit colors, for example #6354da.');
+  if(image&&!/^https:\/\//i.test(image))return show('error','Hero image must use an HTTPS URL.');
+  const branding={websiteName:name,primaryColor:primary,secondaryColor:secondary,font:val('acFont'),footerCopyright:val('acFooterCopy'),contactEmail:val('acContactEmail'),contactInfo:val('acContactInfo'),emailSenderName:val('acSenderName')};
+  const cms={heroTitle:val('acHeroTitle'),heroSubtitle:val('acHeroSubtitle'),heroImage:image,ctaText:val('acCta'),footer:val('acCmsFooter')};
+  return persist('Updated website branding and content',c=>{Object.assign(c.branding,branding);Object.assign(c.cms,cms)});
+ };
+ window.studioSaveHomeContent=async function(){
+  try{
+   const faq=JSON.parse(val('studioFaq')),testimonials=JSON.parse(val('studioTestimonials'));
+   if(!Array.isArray(faq)||!Array.isArray(testimonials)||faq.length>30||testimonials.length>30||faq.some(x=>typeof x?.question!=='string'||typeof x?.answer!=='string')||testimonials.some(x=>typeof x?.name!=='string'||typeof x?.quote!=='string'))throw Error('Use the shown JSON format, up to 30 entries.');
+   return persist('Updated homepage FAQ and testimonials',c=>Object.assign(c.cms,{faq,testimonials}));
+  }catch(e){show('error',e.message);try{toast(e.message)}catch{}}
+ };
+ const previousControlSave=window.adminControlSave;
+ window.adminControlSave=async function(section){
+  if(section==='branding'||section==='cms')return studioSaveWebsite();
+  if(section==='announcement'){
+   const data={enabled:checked('acAnnEnabled'),title:val('acAnnTitle').slice(0,160),message:val('acAnnMessage').slice(0,2000),startDate:val('acAnnStart'),endDate:val('acAnnEnd'),audience:val('acAnnAudience')};
+   if(data.startDate&&data.endDate&&data.startDate>data.endDate)return show('error','End date must be after start date.');
+   return persist('Updated website announcement',c=>Object.assign(c.announcement,data));
+  }
+  return previousControlSave?.(section);
+ };
+ const mo=new MutationObserver(decorate);mo.observe(document.documentElement,{subtree:true,childList:true});setTimeout(decorate,100);
+})();
+
+</script>
+
+<style id="saleearn-plan-save-fix">
+.se-plan-save-status{display:inline-flex;margin-left:10px;padding:7px 10px;border-radius:9px;background:var(--soft,#f1efff);color:var(--muted,#667085);font-size:11px;font-weight:850;vertical-align:middle}.se-plan-save-status[data-state="saving"]{background:#eef1f6;color:#596579}.se-plan-save-status[data-state="live"]{background:#e8f8f0;color:#087a55}.se-plan-save-status[data-state="pending"]{background:#fff3d6;color:#8a5d00}.se-plan-save-status[data-state="error"]{background:#ffebe9;color:#b42318}@media(max-width:600px){.se-plan-save-status{display:flex;margin:9px 0 0}}
+
+</style>
+<script id="saleearn-plan-save-fix-script">
+/* Sale Earn Subscription Plan Save — robust fixed-slot persistence */
+(function(){
+ const IDS=['FREE','CE','ENTERPRISE'],wait=ms=>new Promise(r=>setTimeout(r,ms)),clone=x=>JSON.parse(JSON.stringify(x));let saving=new Set();
+ const byId=id=>document.getElementById(id),text=(id,fallback='')=>String(byId(id)?.value??fallback).trim(),num=(id,fallback=0,min=0,max=1e9)=>{const raw=byId(id)?.value;if(raw==null||raw==='')return Number(fallback)||0;const n=Number(raw);if(!Number.isFinite(n)||n<min||n>max)throw Error('Enter a valid value for '+id.replace(/^pl_[^_]+_/,'').replaceAll('_',' '));return n},bool=(id,fallback=false)=>byId(id)?!!byId(id).checked:!!fallback;
+ function status(id,state,message){let box=document.querySelector(`[data-plan-save-status="${id}"]`);const btn=document.querySelector(`button[onclick*="adminPlanSave('${id}')"]`);if(!box&&btn){box=document.createElement('span');box.dataset.planSaveStatus=id;box.className='se-plan-save-status';btn.insertAdjacentElement('afterend',box)}if(box){box.dataset.state=state;box.textContent=message}try{if(state==='live')toast('Plan saved & live');else if(state==='pending')toast('Plan saved locally. Online sync pending.');else if(state==='error')toast(message)}catch{}}
+ async function flush(){if(typeof ONLINE_READY==='undefined'||!ONLINE_READY||!S.currentUser)return false;if(typeof navigator!=='undefined'&&navigator.onLine===false)return false;if(typeof seStopped!=='undefined'&&seStopped){seStopped=false;seFailures=0;seRetryAt=0}for(let i=0;i<4;i++){while((typeof seWriteBusy!=='undefined'&&seWriteBusy)||(typeof seReadBusy!=='undefined'&&seReadBusy))await wait(120);if(typeof ONLINE_LOCAL_DIRTY!=='undefined'&&!ONLINE_LOCAL_DIRTY)return true;try{await pushOnlineState()}catch{return false}if(typeof ONLINE_LOCAL_DIRTY==='undefined'||!ONLINE_LOCAL_DIRTY)return true;await wait(220*(i+1))}return false}
+ window.adminPlanSave=async function(id){
+  id=String(id||'').toUpperCase();if(!IDS.includes(id))return;if(saving.has(id))return;if(typeof adminOnly==='function'&&!adminOnly())return;const c=ensurePlatformConfig(),plan=c.plans.find(x=>String(x.id).toUpperCase()===id);if(!plan)return status(id,'error','Plan slot not found. Refresh once.');
+  const btn=document.querySelector(`button[onclick*="adminPlanSave('${id}')"]`);saving.add(id);if(btn){btn.disabled=true;btn.dataset.oldText=btn.textContent;btn.textContent='Saving…'}
+  try{
+   const next={...plan,id,name:text(`pl_${id}_name`,plan.name)||plan.name,monthly:id==='FREE'?0:num(`pl_${id}_monthly`,plan.monthly,0),yearly:num(`pl_${id}_yearly`,plan.yearly,0),lifetime:num(`pl_${id}_lifetime`,plan.lifetime,0),trial:num(`pl_${id}_trial`,plan.trial,0,3650),discount:num(`pl_${id}_discount`,plan.discount,0,100),uploadLimit:num(`pl_${id}_upload`,plan.uploadLimit,1,100000),storageLimit:num(`pl_${id}_storage`,plan.storageLimit,1,100000000),commissionPct:num(`pl_${id}_commission`,plan.commissionPct,0,100),ads:bool(`pl_${id}_ads`,plan.ads),analytics:bool(`pl_${id}_analytics`,plan.analytics),referrals:bool(`pl_${id}_referrals`,plan.referrals),advanced:bool(`pl_${id}_advanced`,plan.advanced),prioritySupport:bool(`pl_${id}_priority`,plan.prioritySupport),verified:bool(`pl_${id}_verified`,plan.verified),active:bool(`pl_${id}_active`,plan.active),archived:false};
+   next.featureText=[];for(let i=1;i<=8;i++){const v=text(`pl_${id}_feature${i}`);if(v)next.featureText.push(v.slice(0,120))}if(!next.featureText.length)throw Error('Add at least one plan feature.');
+   const before=clone(c);c.configHistory=Array.isArray(c.configHistory)?c.configHistory:[];c.configHistory.unshift({version:Date.now(),date:new Date().toISOString(),adminId:S.currentUser?.id||'ADMIN',reason:`Subscription plan ${id} changed`,config:{...before,configHistory:[]}});c.configHistory=c.configHistory.slice(0,30);const index=c.plans.findIndex(x=>String(x.id).toUpperCase()===id);c.plans[index]=next;S.platformConfig=c;
+   try{adminAudit('Changed subscription plan',id,{plan:clone(next),confirmedSave:true})}catch{}
+   status(id,'saving','Saving plan…');save();const live=await flush();status(id,live?'live':'pending',live?'✓ Saved & live':'✓ Saved locally · Online sync pending');try{render()}catch{}setTimeout(()=>status(id,live?'live':'pending',live?'✓ Saved & live':'✓ Saved locally · Online sync pending'),50);
+  }catch(e){console.error('Plan save failed',e);status(id,'error','Save failed: '+(e?.message||'Invalid plan data'))}
+  finally{saving.delete(id);if(btn?.isConnected){btn.disabled=false;btn.textContent=btn.dataset.oldText||'Save Plan'}}
+ };
+})();
+
+</script>
+
+<style id="saleearn-admin-hover-lighting-fix">
+/* Sale Earn Admin Hover Lighting — final theme-aware interaction layer */
+.se-admin.se-admin{
+ --ad-hover:#f5f3ff;--ad-hover-strong:#ece8ff;--ad-hover-text:#1f2430;
+ --ad-hover-muted:#5f687b;--ad-hover-line:#d8d3f5;--ad-hover-shadow:0 10px 24px rgba(81,70,229,.10);
+}
+:root[data-theme="dark"] .se-admin.se-admin{
+ --ad-hover:#181d2b;--ad-hover-strong:#20273a;--ad-hover-text:#f4f6ff;
+ --ad-hover-muted:#b6bed0;--ad-hover-line:#4b4770;--ad-hover-shadow:0 12px 28px rgba(0,0,0,.24);
+}
+/* Tables: color every cell, not only the row, so old white-cell rules cannot win. */
+.se-admin.se-admin .admin-table tbody tr.data-row:hover,
+.se-admin.se-admin .admin-table tbody tr.data-row:focus-within{background:transparent!important;transform:none!important;filter:none!important}
+.se-admin.se-admin .admin-table tbody tr.data-row:hover>td,
+.se-admin.se-admin .admin-table tbody tr.data-row:focus-within>td{
+ background:var(--ad-hover)!important;color:var(--ad-hover-text)!important;
+ border-color:var(--ad-hover-line)!important;box-shadow:none!important;
+}
+.se-admin.se-admin .admin-table tbody tr.data-row:hover>td *,
+.se-admin.se-admin .admin-table tbody tr.data-row:focus-within>td *{color:inherit}
+.se-admin.se-admin .admin-table tbody tr.data-row:hover .muted,
+.se-admin.se-admin .admin-table tbody tr.data-row:hover .small,
+.se-admin.se-admin .admin-table tbody tr.data-row:focus-within .muted,
+.se-admin.se-admin .admin-table tbody tr.data-row:focus-within .small{color:var(--ad-hover-muted)!important}
+/* Keep badges and action buttons semantically colored on a hovered row. */
+.se-admin.se-admin .admin-table tr.data-row:hover .admin-pill.success{background:#e6f5ef!important;color:#1c795d!important}
+.se-admin.se-admin .admin-table tr.data-row:hover .admin-pill.warn{background:#fff4df!important;color:#946417!important}
+.se-admin.se-admin .admin-table tr.data-row:hover .admin-pill.danger{background:#ffedf0!important;color:#b1354a!important}
+:root[data-theme="dark"] .se-admin.se-admin .admin-table tr.data-row:hover .admin-pill.success{background:#173c31!important;color:#8ee5c1!important}
+:root[data-theme="dark"] .se-admin.se-admin .admin-table tr.data-row:hover .admin-pill.warn{background:#3b2e16!important;color:#ffd58b!important}
+:root[data-theme="dark"] .se-admin.se-admin .admin-table tr.data-row:hover .admin-pill.danger{background:#40212a!important;color:#ffadb9!important}
+.se-admin.se-admin .admin-table tr.data-row:hover .btn{background:var(--ad-surface)!important;color:var(--ad-text)!important;border-color:var(--ad-line)!important}
+.se-admin.se-admin .admin-table tr.data-row:hover .btn:hover{background:var(--ad-hover-strong)!important;color:var(--ad-hover-text)!important;border-color:var(--ad-hover-line)!important}
+.se-admin.se-admin .admin-table tr.data-row:hover .btn.danger{background:#fff0f2!important;color:#b1334c!important;border-color:#f1ccd4!important}
+:root[data-theme="dark"] .se-admin.se-admin .admin-table tr.data-row:hover .btn.danger{background:#381d26!important;color:#ffb1bd!important;border-color:#63313e!important}
+/* Remaining admin hover surfaces use the same mode-aware lighting. */
+.se-admin.se-admin .admin-link:hover,
+.se-admin.se-admin .as-shortcut:hover,
+.se-admin.se-admin .as-list-row:hover,
+.se-admin.se-admin .security-row:hover,
+.se-admin.se-admin .admin-search-result:hover,
+.se-admin.se-admin .mail-row:hover,
+.se-admin.se-admin .mail-row.selected{
+ background:var(--ad-hover)!important;color:var(--ad-hover-text)!important;
+ border-color:var(--ad-hover-line)!important;box-shadow:var(--ad-hover-shadow)!important;
+}
+.se-admin.se-admin .as-list-row:hover,.se-admin.se-admin .security-row:hover{border-radius:9px;padding-left:10px;padding-right:10px}
+.se-admin.se-admin .admin-link:hover .label,
+.se-admin.se-admin .as-shortcut:hover strong,
+.se-admin.se-admin .as-list-row:hover strong,
+.se-admin.se-admin .security-row:hover b,
+.se-admin.se-admin .admin-search-result:hover strong,
+.se-admin.se-admin .mail-row:hover strong{color:var(--ad-hover-text)!important}
+.se-admin.se-admin .as-shortcut:hover small,
+.se-admin.se-admin .as-list-row:hover p,
+.se-admin.se-admin .security-row:hover .small,
+.se-admin.se-admin .admin-search-result:hover small,
+.se-admin.se-admin .mail-row:hover small{color:var(--ad-hover-muted)!important}
+.se-admin.se-admin .admin-kpi:hover,
+.se-admin.se-admin .admin-card:hover,
+.se-admin.se-admin .admin-detail-box:hover{
+ background:var(--ad-surface)!important;color:var(--ad-text)!important;
+ border-color:var(--ad-hover-line)!important;box-shadow:var(--ad-hover-shadow)!important;
+}
+.se-admin.se-admin .field input:hover,.se-admin.se-admin .field select:hover,.se-admin.se-admin .field textarea:hover,
+.se-admin.se-admin .admin-search:hover{background:var(--ad-surface)!important;color:var(--ad-text)!important;border-color:var(--ad-hover-line)!important}
+.se-admin.se-admin .field input:focus,.se-admin.se-admin .field select:focus,.se-admin.se-admin .field textarea:focus,
+.se-admin.se-admin .admin-search:focus{background:var(--ad-surface)!important;color:var(--ad-text)!important;border-color:var(--ad-accent)!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--ad-accent) 18%,transparent)!important}
+/* Seller/account tables had the same kind of fixed light hover rules. */
+:root[data-theme="light"] .dash-table tbody tr:hover>td{background:#f7f6ff!important;color:#1d2433!important;border-color:#dfdcf4!important}
+:root[data-theme="dark"] .dash-table tbody tr:hover>td{background:#172033!important;color:#edf3ff!important;border-color:#34425e!important}
+:root[data-theme="light"] .account-order:hover,:root[data-theme="light"] .security-row:hover{background:#f7f6ff!important;color:#1d2433!important}
+:root[data-theme="dark"] .account-order:hover,:root[data-theme="dark"] body:not(.se-admin) .security-row:hover{background:#172033!important;color:#edf3ff!important}
+@media(hover:none){.se-admin.se-admin .admin-table tbody tr.data-row:hover>td{background:transparent!important;color:var(--ad-text)!important;border-color:var(--ad-line)!important}.se-admin.se-admin .admin-table tbody tr.data-row:focus-within>td{background:var(--ad-hover)!important;color:var(--ad-hover-text)!important}}
+@media(prefers-reduced-motion:reduce){.se-admin.se-admin .admin-table tr,.se-admin.se-admin .admin-link,.se-admin.se-admin .as-shortcut,.se-admin.se-admin .as-list-row{transition:none!important;transform:none!important}}
+
+</style>
+
+<style id="saleearn-mobile-block-templates-v3">
+/* Sale Earn Mobile Compatibility + block editor templates v3 */
+.se-template-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.se-template{border:1px solid #dfe4ed;background:#fff;color:#263044;border-radius:11px;padding:9px;text-align:left;cursor:pointer}.se-template.active{border-color:#7568ed;box-shadow:0 0 0 3px rgba(117,104,237,.12)}.se-template>span{display:flex;height:25px;border-radius:7px;overflow:hidden;margin-bottom:7px}.se-template i{flex:1}.se-template b,.se-template small{display:block}.se-template b{font-size:12px}.se-template small{font-size:9px;color:#748096;margin-top:3px}.se-auto-mode{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:9px;border-radius:9px;background:#ecf8f3;color:#147452;font-size:11px;font-weight:800}.se-block-order{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:8px}.se-block-order button{min-height:40px;border:1px solid #d9dfea;background:#fff;color:#30384b;border-radius:9px;font-weight:850;cursor:pointer}:root[data-theme=dark] .se-template,:root[data-theme=dark] .se-block-order button{background:#121d30;color:#edf3ff;border-color:#30405c}:root[data-theme=dark] .se-template small{color:#a2aec2}:root[data-theme=dark] .se-auto-mode{background:#15352c;color:#8ee5c1}
+html,body{max-width:100%;overflow-x:hidden}img,video,canvas,svg{max-width:100%;height:auto}*,*:before,*:after{box-sizing:border-box}.container,.page,.section,.hero,.dashboard-shell,.dash-main,.dash-content,.admin-shell,.admin-main,.admin-content{min-width:0;max-width:100%}.table-wrap,.admin-table-wrap,.as-table-wrap,.dash-card:has(table){max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}.btn,button,input,select,textarea{max-width:100%}
+@media(max-width:900px){
+ .container{width:100%!important;padding-left:16px!important;padding-right:16px!important}.page{padding-bottom:88px}.topbar{height:auto!important;min-height:64px}.header-inner,.nav{gap:8px!important;flex-wrap:wrap!important}.search{order:3!important;flex:1 0 100%!important;max-width:none!important}.nav-actions{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}.hero,.section{padding-left:0!important;padding-right:0!important}.hero-grid,.detail-main,.market-layout,.account-layout,.ref-top,.payment-layout,.admin-grid2,.admin-detail,.form-grid,.mail-shell{grid-template-columns:minmax(0,1fr)!important}.grid,.category-grid,.metric-grid,.power-grid,.ref-stats,.plans,.admin-kpis,.as-cols,.as-shortcuts{grid-template-columns:repeat(2,minmax(0,1fr))!important}.product-card,.category-card,.admin-card,.dash-card{min-width:0}.detail-image{min-height:260px!important}.detail-actions,.hero-actions,.admin-actions,.section-head{flex-wrap:wrap}.modal,.admin-confirm{width:min(94vw,680px)!important;max-height:90dvh!important;overflow:auto!important}.payment-modal-wide{width:96vw!important}.payment-left,.payment-right-inner{min-height:0!important}.dash-side{display:none!important}.dash-main{margin-left:0!important;width:100%!important}.dash-top{padding:0 16px!important}.dash-content{padding:18px!important;padding-bottom:96px!important}.dash-table,.admin-table{min-width:720px}.mobile-bottom-nav{display:grid!important}.mobile-topbar{display:flex!important}
+ body.se-admin .admin-shell{display:block!important;height:100dvh!important;overflow:hidden!important}body.se-admin .admin-side{display:flex!important;position:fixed!important;left:-270px!important;top:0!important;bottom:0!important;width:260px!important;height:100dvh!important;z-index:1002!important;transition:left .22s ease!important}body.se-admin.as-menu-open .admin-side{left:0!important}body.se-admin .as-mobile-shade{display:none!important;position:fixed!important;inset:0!important;background:rgba(5,8,18,.58)!important;z-index:1001!important}body.se-admin.as-menu-open .as-mobile-shade{display:block!important}body.se-admin .admin-main{width:100%!important;height:100dvh!important;margin:0!important}body.se-admin .admin-top{height:auto!important;min-height:68px!important;padding:10px 14px!important;gap:8px!important;flex-wrap:wrap!important}body.se-admin .as-menu{display:inline-flex!important}body.se-admin .admin-search-wrap{order:5;flex-basis:100%;max-width:none!important}body.se-admin .admin-content{padding:18px 14px 96px!important}body.se-admin .as-page-title{align-items:flex-start!important;gap:12px!important}body.se-admin .as-date{display:none}.se-studio-panel{overscroll-behavior:contain}
+}
+@media(max-width:600px){
+ .container{padding-left:12px!important;padding-right:12px!important}.grid,.category-grid,.metric-grid,.power-grid,.ref-stats,.plans,.admin-kpis,.as-cols,.as-shortcuts{grid-template-columns:minmax(0,1fr)!important}.hero h1{font-size:clamp(30px,10vw,42px)!important;line-height:1.08}.hero-actions .btn,.detail-actions .btn{width:100%}.product-card .thumb{height:190px}.market-tools{display:grid!important;grid-template-columns:1fr auto!important}.market-tools .searchbox{grid-column:1/-1}.account-nav{grid-template-columns:1fr 1fr!important}.account-help,.account-head{align-items:flex-start!important;flex-direction:column!important}.footer-grid{grid-template-columns:1fr!important}.btn,button,.field input,.field select{min-height:44px}.field input,.field select,.field textarea{font-size:16px!important}.dash-top h1{font-size:18px}.dash-content{padding:12px 12px 92px!important}body.se-admin .admin-content{padding:14px 10px 88px!important}body.se-admin .admin-card{padding:15px!important}body.se-admin .as-top-actions{margin-left:auto;gap:5px!important}body.se-admin .as-preview-label,body.se-admin .as-sync span{display:none}.se-template-grid{grid-template-columns:1fr}.se-block-order{grid-template-columns:1fr}.se-studio-top{max-height:100px;overflow-x:auto}.se-studio-panel{top:108px!important}.se-studio-field input,.se-studio-field select,.se-studio-field textarea{font-size:16px}
+}
+@media(max-width:360px){.container{padding-left:10px!important;padding-right:10px!important}.mobile-bottom-nav{grid-template-columns:repeat(5,minmax(0,1fr))!important}.mobile-bottom-nav button{font-size:9px!important;padding:4px 2px!important}.admin-actions .btn{width:100%}.account-nav{grid-template-columns:1fr!important}.se-studio-top{left:4px!important;right:4px!important}.se-studio-panel{left:4px!important;right:4px!important}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+</style>
+
+<style id="saleearn-universal-mobile-drawer">
+/* Sale Earn Universal Mobile 3-dot Sidebar Drawer */
+.se-mobile-side-trigger,.se-mobile-drawer-shade{display:none}
+@media(max-width:900px){
+ body.se-mobile-drawer-open{overflow:hidden!important;touch-action:none}
+ .se-mobile-side-trigger{display:inline-flex!important;flex:0 0 44px;width:44px;height:44px;min-height:44px;align-items:center;justify-content:center;border:1px solid var(--line,#dfe4ee)!important;border-radius:12px!important;background:var(--card,#fff)!important;color:var(--ink,#172033)!important;box-shadow:0 8px 22px rgba(22,31,58,.10)!important;font-size:27px!important;line-height:1!important;font-weight:900!important;letter-spacing:2px;transform:none!important;z-index:1220;cursor:pointer}
+ .se-mobile-side-trigger:hover,.se-mobile-side-trigger[aria-expanded=true]{background:var(--soft,#eeebfc)!important;color:var(--brand,#5146e5)!important;border-color:#aaa1ee!important;transform:none!important}
+ .se-mobile-side-trigger span{display:block;transform:translateY(-2px)}
+ .se-mobile-drawer-shade{display:block;position:fixed;inset:0;z-index:1190;background:rgba(5,9,20,.58);backdrop-filter:blur(3px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .22s ease,visibility .22s ease}
+ body.se-mobile-drawer-open .se-mobile-drawer-shade{opacity:1;visibility:visible;pointer-events:auto}
+ [data-se-drawer-panel]{display:flex!important;position:fixed!important;top:0!important;bottom:0!important;left:0!important;width:min(82vw,286px)!important;max-width:286px!important;height:100dvh!important;z-index:1200!important;overflow-y:auto!important;overscroll-behavior:contain;padding-top:calc(16px + env(safe-area-inset-top))!important;padding-bottom:calc(18px + env(safe-area-inset-bottom))!important;background:var(--card,#fff)!important;color:var(--ink,#172033)!important;border-right:1px solid var(--line,#dfe4ee)!important;box-shadow:22px 0 60px rgba(10,18,40,.25)!important;transform:translateX(-105%)!important;transition:transform .24s cubic-bezier(.2,.75,.25,1)!important;visibility:hidden!important}
+ body[data-se-mobile-drawer=dashboard] .dashboard-shell>.dash-side,
+ body[data-se-mobile-drawer=account] .account-layout>.account-nav,
+ body[data-se-mobile-drawer=admin] .admin-shell>.admin-side,
+ body[data-se-mobile-drawer=market] .market-layout>.sidebar-filter,
+ body[data-se-mobile-drawer=mail] .mail-shell>.mail-sidebar{transform:translateX(0)!important;visibility:visible!important}
+ .dashboard-shell>.dash-side{display:flex!important;flex-direction:column!important;width:min(82vw,286px)!important;padding-left:14px!important;padding-right:14px!important}
+ .dashboard-shell>.dash-main{margin-left:0!important;width:100%!important}
+ .dashboard-shell>.dash-main>.dash-top{justify-content:flex-start!important;gap:10px!important;padding:9px 12px!important;height:auto!important;min-height:64px!important}
+ .dashboard-shell>.dash-main>.dash-top>h1{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .account-head{position:relative;display:flex!important;flex-direction:row!important;align-items:center!important;gap:10px!important;flex-wrap:wrap}.account-head>.se-mobile-side-trigger{order:-2}.account-head>.account-user{flex:1;min-width:0}.account-head>.account-user>div:last-child{min-width:0}.account-head>.account-user h1,.account-head>.account-user p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.account-layout>.account-nav{display:flex!important;flex-direction:column!important;gap:6px!important;padding:20px 14px!important}.account-layout>.account-nav:before{content:'MY ACCOUNT';padding:6px 10px 12px;color:var(--muted);font-size:11px;font-weight:900;letter-spacing:.12em}.account-layout>.account-nav button{width:100%!important;min-height:46px!important;text-align:left!important}
+ body.se-admin .admin-top.se-has-side-trigger{padding-left:12px!important}.admin-top.se-has-side-trigger>.as-menu{display:none!important}.admin-top.se-has-side-trigger>.se-mobile-side-trigger{order:-5}.admin-shell>.admin-side{display:flex!important}.admin-shell>.admin-side[data-se-drawer-panel]{left:0!important;transform:translateX(-105%)!important}.se-admin.se-admin .admin-shell>.admin-side[data-se-drawer-panel]{position:fixed!important;width:min(82vw,286px)!important;max-width:286px!important;z-index:1200!important}.se-admin.se-admin[data-se-mobile-drawer=admin] .admin-shell>.admin-side[data-se-drawer-panel]{transform:translateX(0)!important}.se-admin.se-admin .as-mobile-shade{display:none!important}
+ .market-tools.se-has-side-trigger{display:flex!important;align-items:center!important;gap:8px!important}.market-tools.se-has-side-trigger>.se-mobile-side-trigger{order:-5}.market-layout>.sidebar-filter{display:block!important;padding:18px 14px!important}.market-layout>.sidebar-filter:before{content:'FILTER PRODUCTS';display:block;margin:2px 8px 14px;color:var(--muted);font-size:11px;font-weight:900;letter-spacing:.12em}.market-layout>.sidebar-filter .filter-cat{width:100%!important;min-height:44px}.market-layout>.sidebar-filter .subcats{display:block!important;padding-left:10px!important}.market-layout>.sidebar-filter .subcats button{width:100%!important;text-align:left!important}
+ .mail-shell>.mail-sidebar{display:flex!important;flex-direction:column!important;padding:18px 14px!important}.mail-shell.se-has-side-trigger{position:relative}.mail-shell.se-has-side-trigger>.se-mobile-side-trigger{position:sticky;top:8px;left:8px;margin:8px;z-index:80}
+ :root[data-theme=dark] .se-mobile-side-trigger{background:#151d2d!important;color:#eef3ff!important;border-color:#34415a!important;box-shadow:0 10px 28px rgba(0,0,0,.28)!important}:root[data-theme=dark] .se-mobile-side-trigger:hover,:root[data-theme=dark] .se-mobile-side-trigger[aria-expanded=true]{background:#282143!important;color:#c8c0ff!important;border-color:#625a91!important}:root[data-theme=dark] [data-se-drawer-panel]{background:#111827!important;color:#edf3ff!important;border-color:#2b3850!important;box-shadow:22px 0 65px rgba(0,0,0,.48)!important}
+}
+@media(max-width:600px){.se-mobile-side-trigger{width:42px;height:42px;min-height:42px;border-radius:11px!important}.dashboard-shell>.dash-main>.dash-top{padding:8px 10px!important}.account-head>.account-user .account-avatar{width:44px;height:44px}.account-head>div:last-child{width:100%;justify-content:flex-end!important}.admin-top.se-has-side-trigger .as-breadcrumb{flex:1}.admin-top.se-has-side-trigger .admin-search-wrap{flex-basis:100%}}
+@media(min-width:901px){body.se-mobile-drawer-open{overflow:auto!important}[data-se-drawer-panel]{visibility:visible!important}.se-mobile-side-trigger,.se-mobile-drawer-shade{display:none!important}}
+@media(prefers-reduced-motion:reduce){[data-se-drawer-panel],.se-mobile-drawer-shade{transition:none!important}}
+
+</style>
+<script id="saleearn-universal-mobile-drawer-script">
+/* Sale Earn Universal Mobile 3-dot Sidebar Drawer */
+(function(){
+ const specs=[
+  {id:'admin',panel:'.admin-shell>.admin-side',host:'.admin-top',label:'Open admin navigation'},
+  {id:'dashboard',panel:'.dashboard-shell>.dash-side',host:'.dashboard-shell>.dash-main>.dash-top',label:'Open seller dashboard menu'},
+  {id:'account',panel:'.account-layout>.account-nav',host:'.account-head',label:'Open My Account menu'},
+  {id:'market',panel:'.market-layout>.sidebar-filter',host:'.market-tools',label:'Open product filters'},
+  {id:'mail',panel:'.mail-shell>.mail-sidebar',host:'.mail-shell',label:'Open mail folders'}
+ ];
+ let current='',lastFocus=null,touchX=null,scheduled=false;
+ function mobile(){return matchMedia('(max-width:900px)').matches}
+ function shade(){let s=document.querySelector('.se-mobile-drawer-shade');if(!s){s=document.createElement('div');s.className='se-mobile-drawer-shade';s.setAttribute('aria-hidden','true');s.onclick=close;document.body.appendChild(s)}return s}
+ function trigger(id){return document.querySelector(`.se-mobile-side-trigger[data-drawer="${id}"]`)}
+ function open(id){if(!mobile())return;const spec=specs.find(x=>x.id===id),panel=spec&&document.querySelector(spec.panel);if(!panel)return;close(false);current=id;lastFocus=document.activeElement;document.body.dataset.seMobileDrawer=id;document.body.classList.add('se-mobile-drawer-open');trigger(id)?.setAttribute('aria-expanded','true');panel.setAttribute('aria-hidden','false');panel.inert=false;shade();setTimeout(()=>panel.querySelector('button.active,a.active,[aria-current],button,a,input')?.focus({preventScroll:true}),60)}
+ function close(restore=true){if(!current&&!document.body.classList.contains('se-mobile-drawer-open'))return;document.body.classList.remove('se-mobile-drawer-open','as-menu-open');delete document.body.dataset.seMobileDrawer;document.querySelectorAll('.se-mobile-side-trigger').forEach(b=>b.setAttribute('aria-expanded','false'));document.querySelectorAll('[data-se-drawer-panel]').forEach(p=>{const hidden=mobile();p.setAttribute('aria-hidden',hidden?'true':'false');p.inert=hidden});const f=lastFocus;current='';if(restore&&f?.isConnected)setTimeout(()=>f.focus({preventScroll:true}),20)}
+ function toggle(id){current===id?close():open(id)}
+ function setup(){scheduled=false;shade();for(const s of specs){const panel=document.querySelector(s.panel),host=document.querySelector(s.host);if(!panel||!host)continue;panel.dataset.seDrawerPanel=s.id;panel.setAttribute('aria-hidden',mobile()?'true':'false');panel.inert=mobile();host.classList.add('se-has-side-trigger');let b=host.querySelector(`.se-mobile-side-trigger[data-drawer="${s.id}"]`);if(!b){b=document.createElement('button');b.type='button';b.className='se-mobile-side-trigger';b.dataset.drawer=s.id;b.setAttribute('aria-label',s.label);b.setAttribute('title',s.label);b.setAttribute('aria-controls','se-drawer-'+s.id);b.setAttribute('aria-expanded','false');b.innerHTML='<span aria-hidden="true">⋮</span>';b.onclick=e=>{e.preventDefault();e.stopPropagation();toggle(s.id)};host.prepend(b)}panel.id='se-drawer-'+s.id;if(!panel.dataset.seDrawerBound){panel.dataset.seDrawerBound='1';panel.addEventListener('click',e=>{if(!mobile())return;const action=e.target.closest('button,a,[role=button]');if(action&&!action.classList.contains('se-mobile-side-trigger'))setTimeout(()=>close(false),100)});panel.addEventListener('touchstart',e=>{touchX=e.touches[0]?.clientX??null},{passive:true});panel.addEventListener('touchend',e=>{if(touchX!=null&&(e.changedTouches[0]?.clientX??touchX)-touchX<-55)close();touchX=null},{passive:true})}}
+  if(!mobile())close(false)
+ }
+ function schedule(){if(scheduled)return;scheduled=true;requestAnimationFrame(setup)}
+ window.saleEarnMobileDrawer={open,close,toggle,refresh:setup};
+ document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});window.addEventListener('resize',schedule,{passive:true});window.addEventListener('hashchange',()=>{close(false);setTimeout(setup,40)});
+ const mo=new MutationObserver(schedule);mo.observe(document.documentElement,{childList:true,subtree:true});setTimeout(setup,80);
+})();
+
+</script>
+
+<style id="saleearn-mobile-polish-v7">
+/* Sale Earn Mobile Polish v7 */
+@media(max-width:900px){
+ body{min-height:100dvh;-webkit-text-size-adjust:100%}.page{min-height:calc(100dvh - 62px)}
+ .admin-shell,.dashboard-shell,.account-layout,.market-layout,.mail-shell{grid-template-columns:minmax(0,1fr)!important;width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important}.dashboard-shell{display:block!important}.admin-main,.dash-main,.account-layout>section,.market-layout>section,.mail-shell>section{width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important}.admin-top.se-has-side-trigger,.dash-top.se-has-side-trigger,.account-head.se-has-side-trigger,.market-tools.se-has-side-trigger{box-sizing:border-box!important}
+ .mobile-topbar{padding-top:env(safe-area-inset-top);height:calc(62px + env(safe-area-inset-top))!important}.mobile-bottom-nav{height:calc(68px + env(safe-area-inset-bottom))!important}
+ .se-mobile-side-trigger{position:relative;overflow:hidden}.se-mobile-side-trigger:after{content:'';position:absolute;inset:5px;border-radius:8px;border:1px solid transparent;pointer-events:none}.se-mobile-side-trigger[aria-expanded=true]:after{border-color:color-mix(in srgb,var(--brand,#5146e5) 35%,transparent)}
+ .se-mobile-drawer-head{display:flex;align-items:center;gap:10px;width:100%;box-sizing:border-box;flex:0 0 auto;margin:-4px 0 12px;padding:4px 4px 13px;border-bottom:1px solid var(--line,#e2e6ee);position:sticky;top:-16px;background:inherit;z-index:4}.se-mobile-drawer-head .se-drawer-mark{width:35px;height:35px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,var(--brand,#5146e5),var(--brand2,#6d63f5));color:#fff;font-size:12px;font-weight:950;box-shadow:0 7px 18px rgba(81,70,229,.2)}.se-mobile-drawer-head>div{min-width:0;flex:1}.se-mobile-drawer-head b,.se-mobile-drawer-head small{display:block}.se-mobile-drawer-head b{font-size:14px;color:var(--ink,#172033)}.se-mobile-drawer-head small{font-size:10px;color:var(--muted,#6d788b);margin-top:2px}.se-mobile-drawer-close{width:40px!important;height:40px!important;min-height:40px!important;display:grid!important;place-items:center!important;margin:0!important;padding:0!important;border-radius:11px!important;border:1px solid var(--line,#e2e6ee)!important;background:var(--card,#fff)!important;color:var(--ink,#172033)!important;font-size:22px!important;line-height:1!important}
+ [data-se-drawer-panel]{flex-direction:column!important;align-items:stretch!important}[data-se-drawer-panel]>button:not(.se-mobile-drawer-close),[data-se-drawer-panel]>a:not(.as-logo){width:100%;display:flex;align-items:center;text-align:left}[data-se-drawer-panel] button,[data-se-drawer-panel] a{touch-action:manipulation}[data-se-drawer-panel] .active,[data-se-drawer-panel] [aria-current=page]{box-shadow:inset 3px 0 0 var(--brand,#5146e5),0 6px 16px rgba(30,40,80,.08)!important}
+ .dashboard-shell>.dash-main>.dash-top,.admin-top.se-has-side-trigger,.market-tools.se-has-side-trigger,.account-head{position:sticky!important;top:calc(62px + env(safe-area-inset-top));z-index:76;background:color-mix(in srgb,var(--card,#fff) 94%,transparent)!important;backdrop-filter:blur(14px);border-bottom:1px solid var(--line,#e2e6ee);padding-top:9px!important;padding-bottom:9px!important}
+ .dashboard-shell>.dash-main>.dash-top{top:0!important}.admin-top.se-has-side-trigger{top:0!important}.account-head{margin-left:0!important;margin-right:0!important;width:100%!important;max-width:100%!important;padding-left:10px!important;padding-right:10px!important;margin-bottom:16px!important}.market-tools.se-has-side-trigger{margin-left:0!important;margin-right:0!important;width:100%!important;max-width:100%!important;padding:9px 10px!important}
+ .account-layout>section,.market-layout>section,.dash-content,.admin-content{min-width:0}.account-panel,.account-profile-card,.dash-card,.admin-card{border-radius:16px!important}.account-order,.asset-card,.security-row{min-width:0}.account-order-main,.asset-main,.security-row>div:first-child{min-width:0;overflow-wrap:anywhere}
+ .dash-table,.admin-table{font-size:12px}.dash-table th,.dash-table td,.admin-table th,.admin-table td{padding:12px 10px!important;white-space:nowrap}.table-wrap,.as-table-wrap,.admin-table-wrap,.dash-card:has(table){scrollbar-width:thin;scroll-snap-type:x proximity}
+ .modal-bg,.admin-confirm-bg{padding:10px!important;align-items:flex-end!important}.modal,.admin-confirm,.modal-card{width:100%!important;max-width:680px!important;max-height:calc(100dvh - 20px - env(safe-area-inset-top))!important;border-radius:20px 20px 12px 12px!important;padding-bottom:calc(18px + env(safe-area-inset-bottom))!important}
+ :root[data-theme=dark] .se-mobile-drawer-head{border-color:#2c3850}:root[data-theme=dark] .se-mobile-drawer-head b{color:#f0f4ff}:root[data-theme=dark] .se-mobile-drawer-close{background:#182235!important;color:#f4f6ff!important;border-color:#34425c!important}:root[data-theme=dark] .dashboard-shell>.dash-main>.dash-top,:root[data-theme=dark] .admin-top.se-has-side-trigger,:root[data-theme=dark] .market-tools.se-has-side-trigger,:root[data-theme=dark] .account-head{background:rgba(14,22,38,.94)!important}
+}
+@media(max-width:600px){
+ .page-title{padding:20px 0 12px}.page-title h1{font-size:25px}.section{padding-top:32px!important;padding-bottom:32px!important}.section-head h2{font-size:21px}
+ .mobile-topbar-inner{padding-left:10px!important;padding-right:10px!important}.mobile-search{min-width:0;flex:1}.mobile-logo span:last-child{max-width:88px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .account-head>.account-user{width:calc(100% - 54px)}.account-head>.account-user h1{font-size:20px!important}.account-head>.account-user p{font-size:11px}.account-head>div:last-child{margin-left:52px;width:calc(100% - 52px)!important}
+ .product-card .body{padding:13px!important}.product-card h3{font-size:15px!important}.detail-info h1{font-size:25px}.detail-image{min-height:230px!important}
+ .admin-kpis{grid-template-columns:repeat(2,minmax(0,1fr))!important}.admin-kpi{min-height:112px}.admin-kpi b{font-size:22px!important}.admin-top.se-has-side-trigger .as-top-actions{gap:4px!important}.admin-top.se-has-side-trigger .as-top-actions>.btn{width:40px!important;padding:8px!important}.admin-top.se-has-side-trigger .admin-search-wrap{order:10!important}
+ .form-grid{display:grid!important;grid-template-columns:minmax(0,1fr)!important}.field{min-width:0}.field input,.field textarea,.field select{width:100%!important}
+}
+@media(max-width:380px){
+ .se-mobile-side-trigger{flex-basis:40px;width:40px;height:40px;min-height:40px;font-size:25px!important}.admin-kpis{grid-template-columns:minmax(0,1fr)!important}.admin-kpi{min-height:100px}.account-head>div:last-child{margin-left:0;width:100%!important}.mobile-bottom-nav button{font-size:8.5px!important}.mobile-bottom-nav .micon{font-size:17px}.btn{padding-left:10px!important;padding-right:10px!important}
+}
+
+</style>
+<script id="saleearn-mobile-polish-v7-script">
+/* Sale Earn Mobile Polish v7 */
+(function(){
+ const names={admin:['Admin Menu','Manage Sale Earn'],dashboard:['Seller Menu','Store management'],account:['My Account','Profile & purchases'],market:['Marketplace Filters','Browse categories'],mail:['Mail Folders','Messages & communication']};
+ let queued=false;
+ function enhance(){queued=false;document.querySelectorAll('[data-se-drawer-panel]').forEach(panel=>{const id=panel.dataset.seDrawerPanel;if(panel.querySelector('.se-mobile-drawer-head'))return;const [title,sub]=names[id]||['Options','Choose a section'];const h=document.createElement('div');h.className='se-mobile-drawer-head';h.innerHTML='<span class="se-drawer-mark">SE</span><div><b></b><small></small></div><button type="button" class="se-mobile-drawer-close" aria-label="Close menu">×</button>';h.querySelector('b').textContent=title;h.querySelector('small').textContent=sub;h.querySelector('button').onclick=()=>window.saleEarnMobileDrawer?.close();panel.prepend(h)});document.querySelectorAll('.se-mobile-side-trigger').forEach(b=>{if(b.dataset.polished)return;b.dataset.polished='1';const id=b.dataset.drawer,[title]=names[id]||['Options'];b.setAttribute('aria-label','Open '+title);b.setAttribute('title',title)})}
+ function schedule(){if(queued)return;queued=true;requestAnimationFrame(enhance)}
+ new MutationObserver(schedule).observe(document.documentElement,{subtree:true,childList:true});addEventListener('hashchange',()=>setTimeout(enhance,30));addEventListener('resize',()=>{if(innerWidth>900)window.saleEarnMobileDrawer?.close(false)},{passive:true});setTimeout(enhance,100);
+})();
+
+</script>
+
+<style id="saleearn-home-cta-mobile-v8">
+@media(max-width:900px){
+ #home-hero .hero-actions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:10px!important;width:100%}
+ #home-hero .hero-actions .btn{width:100%!important;min-width:0!important;min-height:48px!important;display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;white-space:normal!important}
+ [data-se-drawer-panel][aria-hidden=true]{pointer-events:none!important}
+ .account-layout>.account-nav,.dashboard-shell>.dash-side,.admin-shell>.admin-side,.market-layout>.sidebar-filter,.mail-shell>.mail-sidebar{margin:0!important}
+}
+@media(max-width:430px){#home-hero .hero-actions{grid-template-columns:minmax(0,1fr)!important}#home-hero .hero-actions .btn{min-height:50px!important}}
+</style>
+<script id="saleearn-home-cta-mobile-v8-script">
+(function(){
+ let queued=false;
+ function normalize(){queued=false;const box=document.querySelector('#home-hero .hero-actions');if(!box)return;const buttons=[...box.querySelectorAll(':scope>.btn')];const market=buttons[0],sell=buttons[1];if(market){market.id='homeMarketplaceCta';market.dataset.cta='marketplace';if(market.textContent.trim()!=='Explore Marketplace →')market.textContent='Explore Marketplace →';market.onclick=()=>go('market')}if(sell){const label=String(window.ensurePlatformConfig?.().cms?.ctaText||'Start Selling').trim()||'Start Selling';sell.id='homeStartSellingCta';sell.dataset.cta='start-selling';if(sell.textContent.trim()!==label)sell.textContent=label;sell.onclick=()=>window.startSelling()}}
+ function schedule(){if(queued)return;queued=true;requestAnimationFrame(normalize)}
+ new MutationObserver(schedule).observe(document.documentElement,{subtree:true,childList:true,characterData:true});addEventListener('hashchange',()=>setTimeout(normalize,25));setTimeout(normalize,100);
+})();
+</script>
 </body>
 </html>
