@@ -1593,6 +1593,11 @@ async function callRazorpayFunction(functionName, body){
 }
 
 async function startRazorpayCheckout({amount,description,customerName,customerEmail,metadata={},onVerified}){
+  if(typeof window.Razorpay !== "function"){
+    console.error("Razorpay Checkout SDK is not loaded.");
+    toast("Razorpay Checkout could not load. Please refresh and try again.");
+    return false;
+  }
   if(!RAZORPAY_KEY_ID || RAZORPAY_KEY_ID.includes("REPLACE_WITH_YOUR_KEY_ID")){
     toast("Add your Razorpay Test Key ID in the HTML first.");
     return false;
@@ -1619,7 +1624,8 @@ async function startRazorpayCheckout({amount,description,customerName,customerEm
     return false;
   }
 
-  if(!order?.id){
+  const razorpayOrderId = order?.id || order?.order_id || null;
+  if(!razorpayOrderId){
     console.error("Razorpay order response:",order);
     toast("Razorpay returned an invalid order.");
     return false;
@@ -1632,7 +1638,7 @@ async function startRazorpayCheckout({amount,description,customerName,customerEm
       currency:"INR",
       name:"Sale Earn",
       description:description||"Sale Earn payment",
-      order_id:order.id,
+      order_id:razorpayOrderId,
       prefill:{
         name:customerName||"",
         email:customerEmail||""
