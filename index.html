@@ -1581,7 +1581,7 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_3YyPAERqua80hvH2sbvBnw_5qX8l0w7
 // -------------------- RAZORPAY TEST MODE --------------------
 // IMPORTANT: Put ONLY the Razorpay Key ID here. NEVER put the Key Secret in this HTML.
 // The Key Secret belongs in the Supabase Edge Function secrets.
-const RAZORPAY_KEY_ID = "rzp_test_Tb4LEt6u9ybmK";
+const RAZORPAY_KEY_ID = "rzp_test_Tb5HX4ScEhqwap";
 const RAZORPAY_CREATE_ORDER_FUNCTION = "razorpay-create-order";
 const RAZORPAY_VERIFY_FUNCTION = "razorpay-verify-payment";
 
@@ -1593,11 +1593,6 @@ async function callRazorpayFunction(functionName, body){
 }
 
 async function startRazorpayCheckout({amount,description,customerName,customerEmail,metadata={},onVerified}){
-  if(typeof window.Razorpay !== "function"){
-    console.error("Razorpay Checkout SDK is not loaded.");
-    toast("Razorpay Checkout could not load. Please refresh and try again.");
-    return false;
-  }
   if(!RAZORPAY_KEY_ID || RAZORPAY_KEY_ID.includes("REPLACE_WITH_YOUR_KEY_ID")){
     toast("Add your Razorpay Test Key ID in the HTML first.");
     return false;
@@ -1624,8 +1619,7 @@ async function startRazorpayCheckout({amount,description,customerName,customerEm
     return false;
   }
 
-  const razorpayOrderId = order?.id || order?.order_id || null;
-  if(!razorpayOrderId){
+  if(!order?.id){
     console.error("Razorpay order response:",order);
     toast("Razorpay returned an invalid order.");
     return false;
@@ -1638,7 +1632,7 @@ async function startRazorpayCheckout({amount,description,customerName,customerEm
       currency:"INR",
       name:"Sale Earn",
       description:description||"Sale Earn payment",
-      order_id:razorpayOrderId,
+      order_id:order.id,
       prefill:{
         name:customerName||"",
         email:customerEmail||""
