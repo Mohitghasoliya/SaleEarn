@@ -1685,6 +1685,7 @@ async function startRazorpayCheckout({amount,description,customerName,customerEm
 }
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+window.supabaseClient = supabaseClient;
 let SUPABASE_READY = false;
 let SUPABASE_AUTH_BOOTSTRAP=false;
 supabaseClient.auth.onAuthStateChange((event,session)=>{
