@@ -1528,6 +1528,7 @@ html:root[data-theme] .footer .studio-footer{color:#aab6c8!important;border-top:
 <div id="modalRoot"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script id="saleearn-referral-level-helpers">
 function referralCurrentPercent(){
   const u=S.currentUser;
   const raw=Number(u?.referralPercent ?? u?.referralRate ?? u?.referral_percentage ?? 5);
@@ -2489,10 +2490,10 @@ function openBuy(id){
  <div class="modal-footer"><button class="btn" onclick="closeModal()">Back</button><button class="btn primary" onclick="continuePayment('${id}')">Continue to Payment →</button></div></div></div>`
 }
 function continuePayment(id){
- if(window.pendingBuy?.guest){const n=(window.pendingBuy.name||document.getElementById("buyName")?.value||"").trim(),e=(window.pendingBuy.email||document.getElementById("buyEmail")?.value||"").trim().toLowerCase();if(!n||!e){toast("Name and email are required");return}window.pendingBuy={...window.pendingBuy,id,name:n,email:e,userId:guestBuyerId(e),guest:true};openPayment();return}
+ if(window.pendingBuy?.guest){const n=(window.pendingBuy.name||document.getElementById("buyName")?.value||"").trim(),e=(window.pendingBuy.email||document.getElementById("buyEmail")?.value||"").trim().toLowerCase();if(!n||!e){toast("Name and email are required");return}window.pendingBuy={...window.pendingBuy,id,name:n,email:e,userId:guestBuyerId(e),guest:true};testPay();return}
  const n=S.currentUser?.name?.trim(),e=S.currentUser?.email?.trim();
  if(!n||!e){toast("Verified account details are required");return}
- window.pendingBuy={id,name:n,email:e,userId:S.currentUser.id};openPayment()
+ window.pendingBuy={id,name:n,email:e,userId:S.currentUser.id};testPay()
 }
 function openPayment(){
  const p=product(window.pendingBuy.id);const amount=Number(window.pendingBuy.amount??p.price);window.payMethod="UPI";window.paymentDeadline=Date.now()+Number(ensurePlatformConfig().payment?.timeoutMinutes||10)*60*1000;clearInterval(window.paymentTimer);
@@ -5324,4 +5325,5 @@ const oldRender=window.render;window.render=function(){oldRender();applyAppearan
 applyAppearanceTexture();
 })();
 </script>
+<script id="saleearn-v24-direct-checkout-marker">window.SALEEARN_DIRECT_RAZORPAY_CHECKOUT=true;</script>
 </html>
