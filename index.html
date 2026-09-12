@@ -1526,7 +1526,7 @@ html:root[data-theme] .footer .studio-footer{color:#aab6c8!important;border-top:
 </div>
 <div id="app"></div>
 <div id="modalRoot"></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 function referralCurrentPercent(){
   const u=S.currentUser;
@@ -1685,7 +1685,6 @@ async function startRazorpayCheckout({amount,description,customerName,customerEm
 }
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-window.supabaseClient = supabaseClient;
 let SUPABASE_READY = false;
 let SUPABASE_AUTH_BOOTSTRAP=false;
 supabaseClient.auth.onAuthStateChange((event,session)=>{
