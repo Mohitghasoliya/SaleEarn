@@ -1527,6 +1527,7 @@ html:root[data-theme] .footer .studio-footer{color:#aab6c8!important;border-top:
 <div id="app"></div>
 <div id="modalRoot"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 function referralCurrentPercent(){
   const u=S.currentUser;
   const raw=Number(u?.referralPercent ?? u?.referralRate ?? u?.referral_percentage ?? 5);
@@ -1577,6 +1578,112 @@ function validateReferralUpgradeTarget(level){
 <script>
 const SUPABASE_URL = "https://ivrfknfpfjhjytbixqcc.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_3YyPAERqua80hvH2sbvBnw_5qX8l0w7";
+// -------------------- RAZORPAY TEST MODE --------------------
+// IMPORTANT: Put ONLY the Razorpay Key ID here. NEVER put the Key Secret in this HTML.
+// The Key Secret belongs in the Supabase Edge Function secrets.
+const RAZORPAY_KEY_ID = "rzp_test_Tb4LEt6u9ybmK";
+const RAZORPAY_CREATE_ORDER_FUNCTION = "razorpay-create-order";
+const RAZORPAY_VERIFY_FUNCTION = "razorpay-verify-payment";
+
+async function callRazorpayFunction(functionName, body){
+  if(!window.supabaseClient) throw new Error("Supabase client is not ready");
+  const {data,error}=await window.supabaseClient.functions.invoke(functionName,{body});
+  if(error) throw error;
+  return data;
+}
+
+async function startRazorpayCheckout({amount,description,customerName,customerEmail,metadata={},onVerified}){
+  if(!RAZORPAY_KEY_ID || RAZORPAY_KEY_ID.includes("REPLACE_WITH_YOUR_KEY_ID")){
+    toast("Add your Razorpay Test Key ID in the HTML first.");
+    return false;
+  }
+  const payable=Math.round(Number(amount||0)*100);
+  if(!payable){toast("Invalid payment amount");return false;}
+
+  const receipt=(metadata.referenceId||uid("rzp")).toString().slice(0,40);
+  let order;
+  try{
+    order=await callRazorpayFunction(RAZORPAY_CREATE_ORDER_FUNCTION,{
+      amount:payable,
+      currency:"INR",
+      receipt,
+      notes:{
+        productId:String(metadata.productId||""),
+        referenceId:String(metadata.referenceId||""),
+        kind:String(metadata.kind||"product")
+      }
+    });
+  }catch(e){
+    console.error("Razorpay order creation:",e);
+    toast("Razorpay order could not be created.");
+    return false;
+  }
+
+  if(!order?.id){
+    console.error("Razorpay order response:",order);
+    toast("Razorpay returned an invalid order.");
+    return false;
+  }
+
+  return new Promise((resolve)=>{
+    const options={
+      key:RAZORPAY_KEY_ID,
+      amount:payable,
+      currency:"INR",
+      name:"Sale Earn",
+      description:description||"Sale Earn payment",
+      order_id:order.id,
+      prefill:{
+        name:customerName||"",
+        email:customerEmail||""
+      },
+      theme:{color:"#635bff"},
+      modal:{
+        ondismiss:()=>resolve(false)
+      },
+      handler:async function(response){
+        try{
+          const verified=await callRazorpayFunction(RAZORPAY_VERIFY_FUNCTION,{
+            razorpay_order_id:response.razorpay_order_id,
+            razorpay_payment_id:response.razorpay_payment_id,
+            razorpay_signature:response.razorpay_signature,
+            amount:payable,
+            metadata
+          });
+          if(!verified?.verified){
+            toast("Razorpay payment verification failed.");
+            resolve(false);
+            return;
+          }
+          await onVerified?.({
+            ...response,
+            verified:true,
+            razorpayOrder:order
+          });
+          resolve(true);
+        }catch(e){
+          console.error("Razorpay verification:",e);
+          toast("Payment verification failed.");
+          resolve(false);
+        }
+      }
+    };
+    try{
+      const rzp=new Razorpay(options);
+      rzp.on("payment.failed",function(resp){
+        console.warn("Razorpay payment failed:",resp?.error);
+        toast("Razorpay payment failed. Please try again.");
+        resolve(false);
+      });
+      rzp.open();
+    }catch(e){
+      console.error("Razorpay Checkout:",e);
+      toast("Could not open Razorpay Checkout.");
+      resolve(false);
+    }
+  });
+}
+
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 let SUPABASE_READY = false;
 let SUPABASE_AUTH_BOOTSTRAP=false;
@@ -2389,7 +2496,7 @@ function continuePayment(id){
 function openPayment(){
  const p=product(window.pendingBuy.id);const amount=Number(window.pendingBuy.amount??p.price);window.payMethod="UPI";window.paymentDeadline=Date.now()+Number(ensurePlatformConfig().payment?.timeoutMinutes||10)*60*1000;clearInterval(window.paymentTimer);
  const qrData=encodeURIComponent(`upi://pay?pa=${S.settings.websiteUpi||"saleearn.demo@upi"}&pn=Sale%20Earn&am=${amount.toFixed(2)}&cu=INR`);
- document.getElementById("modalRoot").innerHTML=`<div class="modal-bg"><div class="modal payment-modal-wide"><button class="btn iconbtn close" onclick="cancelPayment()">×</button><div class="payment-layout"><aside class="payment-left"><div class="payment-left-title"><span class="logo-mark">SE</span><span>Sale Earn Checkout</span></div><div class="payment-total"><span>Subtotal</span><span>${money(p.price)}</span></div>${window.pendingBuy.discount?`<div class="payment-total"><span>Coupon Discount</span><span>-${money(window.pendingBuy.discount)}</span></div>`:""}<div class="payment-total"><span>Total</span><span>${money(amount)}</span></div><div class="payment-methods"><h4>Pay Online</h4><button class="pay-opt active" onclick="selectPay(this,'UPI')">🔶 <span><b>UPI</b><small style="display:block;color:#7a8599;font-weight:600">Pay to Sale Earn UPI</small></span></button><button class="pay-opt" onclick="selectPay(this,'Card')">▣ <span>Debit/Credit Card</span></button><button class="pay-opt" onclick="selectPay(this,'Paytm')">◉ <span>Paytm</span></button><button class="pay-opt" onclick="selectPay(this,'Net Banking')">▤ <span>Net Banking / Wallet</span></button></div><div style="margin-top:auto;border-top:1px solid #e7e9ef;padding-top:15px;text-align:center;color:#7a8599;font-size:11px">Test payment · No real charge</div></aside><section class="payment-right"><div class="payment-right-inner"><h2 style="text-align:center;margin:4px 0 5px">Payment Options</h2><div id="payForm" class="pay-form">${payForm("UPI",qrData)}</div><div class="modal-footer" style="margin-top:18px"><button class="btn" onclick="openBuy('${p.id}')">← Previous</button><button class="btn primary" onclick="testPay()">Pay ${money(amount)} (Test)</button></div></div><div class="payment-footer-time">◷ This page will timeout in <span id="paymentTimer">${String(Number(ensurePlatformConfig().payment?.timeoutMinutes||10)).padStart(2,"0")}:00</span></div></section></div></div></div>`;
+ document.getElementById("modalRoot").innerHTML=`<div class="modal-bg"><div class="modal payment-modal-wide"><button class="btn iconbtn close" onclick="cancelPayment()">×</button><div class="payment-layout"><aside class="payment-left"><div class="payment-left-title"><span class="logo-mark">SE</span><span>Sale Earn Checkout</span></div><div class="payment-total"><span>Subtotal</span><span>${money(p.price)}</span></div>${window.pendingBuy.discount?`<div class="payment-total"><span>Coupon Discount</span><span>-${money(window.pendingBuy.discount)}</span></div>`:""}<div class="payment-total"><span>Total</span><span>${money(amount)}</span></div><div class="payment-methods"><h4>Pay Online</h4><button class="pay-opt active" onclick="selectPay(this,'UPI')">🔶 <span><b>UPI</b><small style="display:block;color:#7a8599;font-weight:600">Pay to Sale Earn UPI</small></span></button><button class="pay-opt" onclick="selectPay(this,'Card')">▣ <span>Debit/Credit Card</span></button><button class="pay-opt" onclick="selectPay(this,'Paytm')">◉ <span>Paytm</span></button><button class="pay-opt" onclick="selectPay(this,'Net Banking')">▤ <span>Net Banking / Wallet</span></button></div><div style="margin-top:auto;border-top:1px solid #e7e9ef;padding-top:15px;text-align:center;color:#7a8599;font-size:11px">Razorpay Test Mode · No real charge</div></aside><section class="payment-right"><div class="payment-right-inner"><h2 style="text-align:center;margin:4px 0 5px">Payment Options</h2><div id="payForm" class="pay-form">${payForm("UPI",qrData)}</div><div class="modal-footer" style="margin-top:18px"><button class="btn" onclick="openBuy('${p.id}')">← Previous</button><button class="btn primary" onclick="testPay()">Pay ${money(amount)} with Razorpay</button></div></div><div class="payment-footer-time">◷ This page will timeout in <span id="paymentTimer">${String(Number(ensurePlatformConfig().payment?.timeoutMinutes||10)).padStart(2,"0")}:00</span></div></section></div></div></div>`;
  window.paymentTimer=setInterval(()=>{const left=Math.max(0,window.paymentDeadline-Date.now());const el=document.getElementById("paymentTimer");if(el)el.textContent=Math.floor(left/60000)+":"+String(Math.floor(left%60000/1000)).padStart(2,"0");if(left<=0)cancelPayment(true)},250)
 }
 function cancelPayment(expired=false){
@@ -2446,41 +2553,133 @@ function gatewayVerifyAndContinue(kind,amount,meta,done){
  return tx;
 }
 
-function testPay(){ if(!systemGuard('payments','Payments are temporarily disabled by Admin'))return;
+
+async function testPay(){
+ if(!systemGuard('payments','Payments are temporarily disabled by Admin'))return;
  const pending=window.pendingBuy;if(!pending?.id)return;
  const p=product(pending.id);if(!p)return;
- const payable=Number(pending.amount??p.price); const payCfg=ensurePlatformConfig().payment||{}; if(payable<Number(payCfg.minPayment||0)||payable>Number(payCfg.maxPayment||1e15)){toast("Payment amount is outside the Admin payment limits");return}
+ const payable=Number(pending.amount??p.price);
+ const payCfg=ensurePlatformConfig().payment||{};
+ if(payable<Number(payCfg.minPayment||0)||payable>Number(payCfg.maxPayment||1e15)){
+   toast("Payment amount is outside the Admin payment limits");return;
+ }
  const customerId=S.currentUser?.id||pending.userId||null;
  if(hasPurchased(p.id)){closeModal();openPurchasedByProduct(p.id);return}
- if(gatewayAlreadyProcessed("product",p.id+":"+customerId)){toast("This payment was already processed");return}
- const orderId=uid("ord"),orderDate=nowISO(),rate=effectivePlatformFeeRate(p.sellerId,orderDate,p.category);
- const tx=fakeGatewayCreate("product",payable,{refId:orderId,productId:p.id,sellerId:p.sellerId,customerId,recipient:"ADMIN"});
+ if(gatewayAlreadyProcessed("product",p.id+":"+customerId)){
+   toast("This payment was already processed");return;
+ }
+
  clearInterval(window.paymentTimer);
- document.getElementById("modalRoot").innerHTML=`<div class="modal-bg"><div class="modal" style="text-align:center;padding:34px"><div style="font-size:42px">⏳</div><h2>Verifying Payment</h2><p class="muted">Checking test-gateway transaction <b>${esc(tx.id)}</b>...</p><div class="dash-card"><div>Amount: <b>${money(payable)}</b></div><div class="small muted">Payment is applied only after verification.</div></div></div></div>`;
- setTimeout(()=>{
-   if(!fakeGatewayMarkSuccess(tx.id)){fakeGatewayFail(tx.id,"Gateway did not report success");toast("Payment failed");return}
-   setTimeout(()=>{
-   if(!fakeGatewayVerify(tx.id,{userId:customerId,amount:payable,kind:"product",recipient:"ADMIN",refId:orderId})){fakeGatewayFail(tx.id,"Verification mismatch");toast("Payment verification failed");return}
-   if((S.orders||[]).some(o=>o.id===orderId||o.gatewayPaymentId===tx.id)){toast("Duplicate payment blocked");return}
-   const order={id:orderId,productId:p.id,sellerId:p.sellerId,customerId,customerName:pending.name||S.currentUser?.name||"Guest",customerEmail:pending.email||S.currentUser?.email||"",amount:payable,originalAmount:Number(p.price||0),couponDiscount:Math.max(0,Number(p.price||0)-payable),platformFeeRate:rate,platformFee:payable*rate,netSellerAmount:payable*(1-rate),deliveryUrl:(p.links&&p.links[0])||"",deliveryLinks:[...(p.links||[])],deliveryTitles:[...(p.linkTitles||p.links?.map((_,i)=>`File ${i+1}`)||[])],status:"SUCCESS",method:window.payMethod||"UPI",date:orderDate,gatewayPaymentId:tx.id,paymentVerified:true};
-   S.orders.unshift(order);adjustSellerScore(p.sellerId,5,"Successful sale","SALE:"+order.id);p.sales=S.orders.filter(o=>o.productId===p.id&&o.status==="SUCCESS").length;if(!S.library.includes(p.id))S.library.push(p.id);S.cart=S.cart.filter(x=>x!==p.id);if(window.pendingBuy?.couponId){const c=S.coupons.find(x=>x.id===window.pendingBuy.couponId)||((p.coupon&&p.coupon.id===window.pendingBuy.couponId)?p.coupon:null);if(c){c.used=Number(c.used||0)+1;S.couponRedemptions=S.couponRedemptions||[];S.couponRedemptions.push({id:uid('cr'),couponId:c.id,code:c.code,userId:window.pendingBuy.userId,productId:p.id,date:nowISO()});}else if(p.coupon&&p.coupon.code===window.pendingBuy.couponCode){p.coupon.used=Number(p.coupon.used||0)+1;S.couponRedemptions=S.couponRedemptions||[];S.couponRedemptions.push({id:uid('cr'),couponId:'product:'+p.id,code:p.coupon.code,userId:window.pendingBuy.userId,productId:p.id,date:nowISO()});}}save();closeModal();go("success/"+order.id)
-   },500)
- },700);
+ document.getElementById("modalRoot").innerHTML=`<div class="modal-bg"><div class="modal" style="text-align:center;padding:34px"><div style="font-size:42px">💳</div><h2>Opening Razorpay</h2><p class="muted">Secure test checkout is loading...</p><div class="dash-card"><div>Amount: <b>${money(payable)}</b></div><div class="small muted">Payment is applied only after server-side verification.</div></div></div></div>`;
+
+ const orderRef=uid("ord");
+ const ok=await startRazorpayCheckout({
+   amount:payable,
+   description:"Sale Earn — "+String(p.title||"Digital product"),
+   customerName:pending.name||S.currentUser?.name||"Guest",
+   customerEmail:pending.email||S.currentUser?.email||"",
+   metadata:{
+     kind:"product",
+     referenceId:orderRef,
+     productId:p.id,
+     sellerId:p.sellerId,
+     customerId:customerId||""
+   },
+   onVerified:async(response)=>{
+     if((S.orders||[]).some(o=>o.id===orderRef||o.gatewayPaymentId===response.razorpay_payment_id)){
+       toast("Duplicate payment blocked");return;
+     }
+     const orderDate=nowISO();
+     const rate=effectivePlatformFeeRate(p.sellerId,orderDate,p.category);
+     const order={
+       id:orderRef,
+       productId:p.id,
+       sellerId:p.sellerId,
+       customerId,
+       customerName:pending.name||S.currentUser?.name||"Guest",
+       customerEmail:pending.email||S.currentUser?.email||"",
+       amount:payable,
+       originalAmount:Number(p.price||0),
+       couponDiscount:Math.max(0,Number(p.price||0)-payable),
+       platformFeeRate:rate,
+       platformFee:payable*rate,
+       netSellerAmount:payable*(1-rate),
+       deliveryUrl:(p.links&&p.links[0])||"",
+       deliveryLinks:[...(p.links||[])],
+       deliveryTitles:[...(p.linkTitles||p.links?.map((_,i)=>`File ${i+1}`)||[])],
+       status:"SUCCESS",
+       method:"Razorpay",
+       date:orderDate,
+       gatewayPaymentId:response.razorpay_payment_id,
+       razorpayOrderId:response.razorpay_order_id,
+       paymentVerified:true
+     };
+     S.orders.unshift(order);
+     adjustSellerScore(p.sellerId,5,"Successful sale","SALE:"+order.id);
+     p.sales=S.orders.filter(o=>o.productId===p.id&&o.status==="SUCCESS").length;
+     if(!S.library.includes(p.id))S.library.push(p.id);
+     S.cart=S.cart.filter(x=>x!==p.id);
+
+     if(window.pendingBuy?.couponId){
+       const c=S.coupons.find(x=>x.id===window.pendingBuy.couponId)||((p.coupon&&p.coupon.id===window.pendingBuy.couponId)?p.coupon:null);
+       if(c){
+         c.used=Number(c.used||0)+1;
+         S.couponRedemptions=S.couponRedemptions||[];
+         S.couponRedemptions.push({id:uid('cr'),couponId:c.id,code:c.code,userId:window.pendingBuy.userId,productId:p.id,date:nowISO()});
+       }else if(p.coupon&&p.coupon.code===window.pendingBuy.couponCode){
+         p.coupon.used=Number(p.coupon.used||0)+1;
+         S.couponRedemptions=S.couponRedemptions||[];
+         S.couponRedemptions.push({id:uid('cr'),couponId:'product:'+p.id,code:p.coupon.code,userId:window.pendingBuy.userId,productId:p.id,date:nowISO()});
+       }
+     }
+     save();
+     closeModal();
+     go("success/"+order.id);
+   }
+ });
+ if(!ok){
+   closeModal();
+ }
 }
 function servicePaymentPanel(kind,amount,meta={}){
  const label=kind==="subscription"?"Subscription":kind==="ad"?"Ad / Boost":"Payment";
  window.pendingService={kind,amount:Number(amount||0),meta};
  const available=sellerAvailableBalance(currentSeller().id);
- document.getElementById("modalRoot").innerHTML=`<div class="modal-bg"><div class="modal payment-service-modal"><button class="btn iconbtn close" onclick="closeModal()">×</button><h2>${label} Payment</h2><div class="dash-card"><div class="small muted">Amount</div><h2>${money(amount)}</h2>${window.pendingService?.discount?`<div class="small muted">Coupon discount: -${money(window.pendingService.discount)}</div>`:""}<div class="small muted">Choose how you want to pay.</div></div><div class="field"><label>Coupon Code (optional)</label><div style="display:flex;gap:8px"><input id="serviceCoupon" placeholder="Enter coupon" value="${esc(window.pendingService?.couponCode||'')}"><button class="btn" onclick="applyServiceCoupon()">Apply</button></div><div class="small muted">Admin coupons may apply to this ${label.toLowerCase()}.</div></div><div class="service-pay-options"><button class="btn primary" onclick="servicePayOnline()">Pay Online</button><button class="btn" onclick="servicePayBalance()">Pay from Available Balance</button></div><p class="small muted">Online gateway is not connected yet. A subscription/Ad will activate only after a verified gateway payment. Balance payments deduct from To Receive immediately after successful confirmation.</p></div></div>`
+ document.getElementById("modalRoot").innerHTML=`<div class="modal-bg"><div class="modal payment-service-modal"><button class="btn iconbtn close" onclick="closeModal()">×</button><h2>${label} Payment</h2><div class="dash-card"><div class="small muted">Amount</div><h2>${money(amount)}</h2>${window.pendingService?.discount?`<div class="small muted">Coupon discount: -${money(window.pendingService.discount)}</div>`:""}<div class="small muted">Choose how you want to pay.</div></div><div class="field"><label>Coupon Code (optional)</label><div style="display:flex;gap:8px"><input id="serviceCoupon" placeholder="Enter coupon" value="${esc(window.pendingService?.couponCode||'')}"><button class="btn" onclick="applyServiceCoupon()">Apply</button></div><div class="small muted">Admin coupons may apply to this ${label.toLowerCase()}.</div></div><div class="service-pay-options"><button class="btn primary" onclick="servicePayOnline()">Pay Online</button><button class="btn" onclick="servicePayBalance()">Pay from Available Balance</button></div><p class="small muted">Online gateway uses Razorpay Test Mode. A subscription/Ad will activate only after a verified gateway payment. Balance payments deduct from To Receive immediately after successful confirmation.</p></div></div>`
 }
 function applyServiceCoupon(){const x=window.pendingService;if(!x)return;const code=(document.getElementById('serviceCoupon')?.value||'').trim().toUpperCase();const context=x.kind==='subscription'?'SUBSCRIPTION':x.kind==='ad'?'ADS':'PRODUCT';const userId=S.currentUser?.id||currentSeller()?.id||'guest';let c=validCoupon(code,null,userId,context);if(c&&context==='ADS'&&c.placement&&x.meta?.type&&!String(x.meta.type).toLowerCase().includes(String(c.placement).toLowerCase()))c=null;if(!c){toast('Invalid, expired, exhausted or not applicable here');return}const base=Number(x.meta?.baseAmount??x.amount);const d=couponDiscount(c,base);window.pendingService={...x,couponId:c.id,couponCode:c.code,discount:d,baseAmount:base,amount:Math.max(0,base-d),meta:{...(x.meta||{}),discount:d,baseAmount:base}};toast('Coupon applied');servicePaymentPanel(window.pendingService.kind,window.pendingService.amount,window.pendingService.meta)}
-function servicePayOnline(){
+
+async function servicePayOnline(){
  if(!systemGuard('payments','Payments are temporarily disabled by Admin'))return;
- const x=window.pendingService;if(!x)return; const label=x.kind==="subscription"?"Subscription":x.kind==="ad"?"Ad / Boost":"Payment";
- const fakeId=uid("svc");window.serviceOnline={...x,id:fakeId};window.payMethod="UPI";window.paymentDeadline=Date.now()+Number(ensurePlatformConfig().payment?.timeoutMinutes||10)*60*1000;clearInterval(window.paymentTimer);
- const qr=encodeURIComponent(`upi://pay?pa=${S.settings.websiteUpi||"saleearn.demo@upi"}&pn=Sale%20Earn&am=${x.amount.toFixed(2)}&cu=INR`);
- document.getElementById("modalRoot").innerHTML=`<div class="modal-bg"><div class="modal payment-modal-wide"><button class="btn iconbtn close" onclick="cancelServicePayment()">×</button><div class="payment-layout"><aside class="payment-left"><div class="payment-left-title"><span class="logo-mark">SE</span><span>Sale Earn Checkout</span></div><div class="payment-total"><span>Total</span><span>${money(x.amount)}</span></div><div class="payment-methods"><h4>Pay Online</h4><button class="pay-opt active" onclick="selectServicePay(this,'UPI')">🔶 <span>UPI</span></button><button class="pay-opt" onclick="selectServicePay(this,'Card')">▣ <span>Debit/Credit Card</span></button><button class="pay-opt" onclick="selectServicePay(this,'Paytm')">◉ <span>Paytm</span></button><button class="pay-opt" onclick="selectServicePay(this,'Net Banking')">▤ <span>Net Banking / Wallet</span></button></div></aside><section class="payment-right"><div class="payment-right-inner"><h2>Pay ${label}</h2><div id="servicePayForm">${servicePayForm("UPI",qr,x.amount)}</div><div class="modal-footer"><button class="btn" onclick="servicePaymentPanel(window.pendingService.kind,window.pendingService.amount,window.pendingService.meta)">← Previous</button><button class="btn primary" onclick="completeServiceOnline()">Pay ${money(x.amount)} (Test)</button></div></div><div class="payment-footer-time">◷ Expires in <span id="serviceTimer">${String(Number(ensurePlatformConfig().payment?.timeoutMinutes||10)).padStart(2,"0")}:00</span></div></section></div></div></div>`;
- window.paymentTimer=setInterval(()=>{const left=Math.max(0,window.paymentDeadline-Date.now());const el=document.getElementById("serviceTimer");if(el)el.textContent=Math.floor(left/60000)+":"+String(Math.floor(left%60000/1000)).padStart(2,"0");if(left<=0)cancelServicePayment(true)},250)
+ const x=window.pendingService;if(!x)return;
+ const sid=currentSeller()?.id;
+ if(!sid){toast("Seller account required");return}
+ const label=x.kind==="subscription"?"Subscription":x.kind==="ad"?"Ad / Boost":"Payment";
+ clearInterval(window.paymentTimer);
+ document.getElementById("modalRoot").innerHTML=`<div class="modal-bg"><div class="modal" style="text-align:center;padding:34px"><div style="font-size:42px">💳</div><h2>Opening Razorpay</h2><p class="muted">Secure test checkout is loading...</p><div class="dash-card"><div>Amount: <b>${money(x.amount)}</b></div><div class="small muted">Service activates only after server-side verification.</div></div></div></div>`;
+ const refId=x.id||uid("svc");
+ const ok=await startRazorpayCheckout({
+   amount:x.amount,
+   description:"Sale Earn — "+label,
+   customerName:S.currentUser?.name||currentSeller()?.name||"",
+   customerEmail:S.currentUser?.email||"",
+   metadata:{
+     kind:x.kind,
+     referenceId:refId,
+     sellerId:sid,
+     plan:x.meta?.plan||"",
+     productId:x.meta?.productId||""
+   },
+   onVerified:async(response)=>{
+     const verified={...x,gatewayPaymentId:response.razorpay_payment_id,razorpayOrderId:response.razorpay_order_id,paymentVerified:true};
+     window.serviceOnline=null;
+     window.pendingService=null;
+     applyServicePayment(verified,"RAZORPAY_TEST");
+     toast(`${label} test payment verified.`);
+     showServiceSuccess(verified);
+   }
+ });
+ if(!ok)closeModal();
 }
 function selectServicePay(btn,type){document.querySelectorAll(".pay-opt").forEach(b=>b.classList.remove("active"));btn.classList.add("active");document.getElementById("servicePayForm").innerHTML=servicePayForm(type,"",window.pendingService?.amount||0);window.payMethod=type}
 function servicePayForm(type,qrData,amount){
@@ -3172,29 +3371,36 @@ function completeReferralUpgradeBalance(rate,price){ if(!systemGuard('payments',
    },500)
  },500)
 }
-function payReferralUpgradeOnline(rate,price){window.refUpgrade={rate,price,id:uid("ru"),fromRate:referralRate()};window.payMethod="UPI";window.paymentDeadline=Date.now()+Number(ensurePlatformConfig().payment?.timeoutMinutes||10)*60*1000;clearInterval(window.paymentTimer);const qr=encodeURIComponent(`upi://pay?pa=${S.settings.websiteUpi||"saleearn.demo@upi"}&pn=Sale%20Earn&am=${price.toFixed(2)}&cu=INR`);document.getElementById("modalRoot").innerHTML=`<div class="modal-bg"><div class="modal payment-modal-wide"><button class="btn iconbtn close" onclick="cancelReferralUpgradePayment()">×</button><div class="payment-layout"><aside class="payment-left"><div class="payment-left-title"><span class="logo-mark">SE</span><span>Sale Earn Checkout</span></div><div class="payment-total"><span>Referral Rate</span><span>${referralRate()}% → ${rate}%</span></div><div class="payment-total"><span>Upgrade Levels</span><span>${Array.from({length:rate-referralRate()},(_,i)=>referralRate()+i+1).join('% + ')}%</span></div><div class="payment-total"><span>Total</span><span>${money(price)}</span></div><div class="payment-methods"><h4>Pay Online</h4><button class="pay-opt active" onclick="selectReferralUpgradePay(this,'UPI')">🔶 <span>UPI</span></button><button class="pay-opt" onclick="selectReferralUpgradePay(this,'Card')">▣ <span>Debit/Credit Card</span></button><button class="pay-opt" onclick="selectReferralUpgradePay(this,'Paytm')">◉ <span>Paytm</span></button><button class="pay-opt" onclick="selectReferralUpgradePay(this,'Net Banking')">▤ <span>Net Banking / Wallet</span></button></div><div style="margin-top:auto;border-top:1px solid #e7e9ef;padding-top:15px;text-align:center;color:#7a8599;font-size:11px">Test payment · No real charge</div></aside><section class="payment-right"><div class="payment-right-inner"><h2>Referral Upgrade Payment</h2><div id="refUpgradePayForm">${referralUpgradePayForm("UPI",qr,price)}</div><div class="modal-footer"><button class="btn" onclick="openReferralUpgrade(${rate})">← Change Level</button><button class="btn primary" onclick="completeReferralUpgradeOnline()">Pay ${money(price)} (Test)</button></div></div><div class="payment-footer-time">◷ Expires in <span id="refUpgradeTimer">${String(Number(ensurePlatformConfig().payment?.timeoutMinutes||10)).padStart(2,"0")}:00</span></div></section></div></div></div>`;window.paymentTimer=setInterval(()=>{const left=Math.max(0,window.paymentDeadline-Date.now()),el=document.getElementById("refUpgradeTimer");if(el)el.textContent=Math.floor(left/60000)+":"+String(Math.floor(left%60000/1000)).padStart(2,"0");if(left<=0)cancelReferralUpgradePayment(true)},250)}
+function payReferralUpgradeOnline(rate,price){window.refUpgrade={rate,price,id:uid("ru"),fromRate:referralRate()};window.payMethod="UPI";window.paymentDeadline=Date.now()+Number(ensurePlatformConfig().payment?.timeoutMinutes||10)*60*1000;clearInterval(window.paymentTimer);const qr=encodeURIComponent(`upi://pay?pa=${S.settings.websiteUpi||"saleearn.demo@upi"}&pn=Sale%20Earn&am=${price.toFixed(2)}&cu=INR`);document.getElementById("modalRoot").innerHTML=`<div class="modal-bg"><div class="modal payment-modal-wide"><button class="btn iconbtn close" onclick="cancelReferralUpgradePayment()">×</button><div class="payment-layout"><aside class="payment-left"><div class="payment-left-title"><span class="logo-mark">SE</span><span>Sale Earn Checkout</span></div><div class="payment-total"><span>Referral Rate</span><span>${referralRate()}% → ${rate}%</span></div><div class="payment-total"><span>Upgrade Levels</span><span>${Array.from({length:rate-referralRate()},(_,i)=>referralRate()+i+1).join('% + ')}%</span></div><div class="payment-total"><span>Total</span><span>${money(price)}</span></div><div class="payment-methods"><h4>Pay Online</h4><button class="pay-opt active" onclick="selectReferralUpgradePay(this,'UPI')">🔶 <span>UPI</span></button><button class="pay-opt" onclick="selectReferralUpgradePay(this,'Card')">▣ <span>Debit/Credit Card</span></button><button class="pay-opt" onclick="selectReferralUpgradePay(this,'Paytm')">◉ <span>Paytm</span></button><button class="pay-opt" onclick="selectReferralUpgradePay(this,'Net Banking')">▤ <span>Net Banking / Wallet</span></button></div><div style="margin-top:auto;border-top:1px solid #e7e9ef;padding-top:15px;text-align:center;color:#7a8599;font-size:11px">Razorpay Test Mode · No real charge</div></aside><section class="payment-right"><div class="payment-right-inner"><h2>Referral Upgrade Payment</h2><div id="refUpgradePayForm">${referralUpgradePayForm("UPI",qr,price)}</div><div class="modal-footer"><button class="btn" onclick="openReferralUpgrade(${rate})">← Change Level</button><button class="btn primary" onclick="completeReferralUpgradeOnline()">Pay ${money(price)} with Razorpay</button></div></div><div class="payment-footer-time">◷ Expires in <span id="refUpgradeTimer">${String(Number(ensurePlatformConfig().payment?.timeoutMinutes||10)).padStart(2,"0")}:00</span></div></section></div></div></div>`;window.paymentTimer=setInterval(()=>{const left=Math.max(0,window.paymentDeadline-Date.now()),el=document.getElementById("refUpgradeTimer");if(el)el.textContent=Math.floor(left/60000)+":"+String(Math.floor(left%60000/1000)).padStart(2,"0");if(left<=0)cancelReferralUpgradePayment(true)},250)}
 function selectReferralUpgradePay(btn,type){document.querySelectorAll(".pay-opt").forEach(b=>b.classList.remove("active"));btn.classList.add("active");document.getElementById("refUpgradePayForm").innerHTML=referralUpgradePayForm(type,"",window.refUpgrade?.price||0);window.payMethod=type}
 function referralUpgradePayForm(type,qrData,amount){if(type==="UPI")return `<div style="text-align:center"><h3>Pay Sale Earn via UPI</h3><p class="small muted">UPI ID: <b>${esc(S.settings.websiteUpi||"saleearn.demo@upi")}</b></p><div class="payment-qr"><img src="https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${qrData}" alt="Sale Earn UPI QR"></div></div>`;if(type==="Card")return `<div class="form-grid"><div class="field"><label>Card Number</label><input inputmode="numeric" placeholder="Test card number"></div><div class="field"><label>Expiry</label><input placeholder="MM/YY"></div><div class="field"><label>Name on Card</label><input placeholder="Demo User"></div><div class="field"><label>CVV</label><input inputmode="numeric" placeholder="123"></div></div><p class="small muted">Prototype/test mode only. Do not enter a real card.</p>`;return `<div class="field"><label>Payment method</label><select><option>${esc(type)}</option></select></div><p class="small muted">Prototype/test mode only.</p>`}
-function completeReferralUpgradeOnline(){ if(!systemGuard('payments','Payments are temporarily disabled by Admin'))return;
- const x=window.refUpgrade;if(!x)return;clearInterval(window.paymentTimer);
+
+async function completeReferralUpgradeOnline(){
+ if(!systemGuard('payments','Payments are temporarily disabled by Admin'))return;
+ const x=window.refUpgrade;if(!x)return;
  const sid=currentSeller()?.id;if(!sid)return;
- if(x.rate!==nextReferralRate()){toast("Only the next referral level can be purchased");return}
- const refId=x.id||uid("ru");
- if(gatewayAlreadyProcessed("referralUpgrade",refId)){toast("This payment was already processed");return}
- document.getElementById("modalRoot").innerHTML=`<div class="modal-bg"><div class="modal" style="text-align:center;padding:34px"><div style="font-size:42px">⏳</div><h2>Verifying Payment</h2><p class="muted">Checking test-gateway transaction...</p></div></div>`;
- const tx=fakeGatewayCreate("referralUpgrade",x.price,{refId,sellerId:sid,fromRate:x.fromRate,toRate:x.rate,recipient:"ADMIN"});
- setTimeout(()=>{
-   if(!fakeGatewayMarkSuccess(tx.id)){fakeGatewayFail(tx.id,"Gateway did not report success");toast("Payment failed");return}
-   setTimeout(()=>{
-     if(!fakeGatewayVerify(tx.id,{userId:sid,amount:x.price,kind:"referralUpgrade",recipient:"ADMIN",refId:refId})){fakeGatewayFail(tx.id,"Verification mismatch");toast("Payment verification failed");return}
-     const cur=referralRate();if(x.rate!==cur+1){toast("Referral level changed. Payment not applied.");return}
-     currentSeller().referralPercent=x.rate;
-     S.referralUpgrades=S.referralUpgrades||[];
-     S.referralUpgrades.unshift({id:refId,sellerId:sid,fromRate:cur,toRate:x.rate,amount:x.price,paymentSource:"ONLINE_TEST",paymentStatus:"SUCCESS",paymentVerified:true,gatewayPaymentId:tx.id,date:nowISO(),levels:[x.rate]});
-     save();window.refUpgrade=null;showReferralUpgradeSuccess(x.rate,x.price,"ONLINE_TEST",cur)
-   },500)
- },700);
+ const ok=await startRazorpayCheckout({
+   amount:x.price,
+   description:"Sale Earn — Referral upgrade",
+   customerName:S.currentUser?.name||currentSeller()?.name||"",
+   customerEmail:S.currentUser?.email||"",
+   metadata:{
+     kind:"referralUpgrade",
+     referenceId:x.id||uid("ru"),
+     sellerId:sid,
+     fromRate:x.fromRate,
+     toRate:x.rate
+   },
+   onVerified:async(response)=>{
+     const verified={...x,gatewayPaymentId:response.razorpay_payment_id,razorpayOrderId:response.razorpay_order_id,paymentVerified:true};
+     window.refUpgrade=null;
+     applyReferralUpgradePayment(verified,"RAZORPAY_TEST");
+     toast("Referral upgrade test payment verified.");
+   }
+ });
+ if(!ok)closeModal();
 }
+
 function cancelReferralUpgradePayment(expired=false){clearInterval(window.paymentTimer);window.refUpgrade=null;closeModal();if(expired)toast("Payment session expired")}
 function showReferralUpgradeSuccess(rate,price,source,fromRate=rate-1){document.getElementById("modalRoot").innerHTML=`<div class="modal-bg"><div class="modal" style="text-align:center;padding:34px"><div style="font-size:58px">✓</div><h2>Referral Rate Upgraded</h2><p class="muted">Your referral rate is now <b>${rate}%</b>.</p><div class="dash-card"><b>Paid ${money(price)}</b><div class="small muted">Upgrade: ${fromRate}% → ${rate}%</div><div class="small muted">Payment: ${esc(source)}</div><div class="small muted">This rate applies to future eligible referrals only.</div></div><button class="btn primary" onclick="closeModal();render()">Done</button></div></div>`}
 function dashReferral(){
@@ -4927,7 +5133,15 @@ const detailV20=adminUserDetail;adminUserDetail=function(id){let h=detailV20(id)
 function toolbarRestore(){let root=document.getElementById('seWebsiteStudio');if(!root)return;let b=root.querySelector('.se-studio-toolbar-restore');if(!b){b=document.createElement('button');b.className='se-studio-toolbar-restore';b.innerHTML='›';b.title='Show Website Studio toolbar';b.onclick=()=>{sessionStorage.removeItem('seStudioToolbarHidden');document.body.classList.remove('se-studio-toolbar-hidden')};root.appendChild(b)}if(sessionStorage.getItem('seStudioToolbarHidden')==='1')document.body.classList.add('se-studio-toolbar-hidden')}
 const render19=window.render;window.render=function(){render19();previewBar();toolbarRestore()};
 })();
-</script></body>
+</script>
+<!--
+RAZORPAY TEST SETUP
+1) Replace RAZORPAY_KEY_ID above with your rzp_test_... Key ID.
+2) Deploy the included Supabase Edge Functions.
+3) Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to Supabase Function Secrets.
+4) Never put RAZORPAY_KEY_SECRET in this HTML or GitHub.
+-->
+</body>
 <!-- Sale Earn v21: Badge Studio, Games, Messages, Verification & Final-Amount Finance -->
 <style id="saleearn-v21-style">
 .product-card .thumb{position:relative}.product-card .thumb>.product-badge{position:absolute;margin:0;max-width:calc(100% - 20px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.product-badge.badge-top.badge-left{top:10px;bottom:auto;left:10px;right:auto}.product-badge.badge-top.badge-right{top:10px;bottom:auto;right:10px;left:auto}.product-badge.badge-bottom.badge-left{bottom:10px;top:auto;left:10px;right:auto}.product-badge.badge-bottom.badge-right{bottom:10px;top:auto;right:10px;left:auto}
